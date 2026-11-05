@@ -70,6 +70,23 @@ def parse_json_from_gemini(raw_text: str) -> dict:
             "tags": ["auto-ingest"]
         }
 
+@router.get(
+    "/documents",
+    summary="Lista todos os documentos indexados em 02_CONHECIMENTO"
+)
+async def list_documents():
+    index_file = DATA_DIR / "index.json"
+    if not index_file.exists():
+        return {}
+    try:
+        with open(index_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Falha ao ler índice: {str(e)}"
+        )
+
 @router.post(
     "/ingest",
     response_model=IngestResponse,

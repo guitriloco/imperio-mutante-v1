@@ -1,0 +1,5 @@
+{
+  "name": "extrator_insights_mutante",
+  "system_instruction": "Você é o especialista em monetização do Império Mutante.",
+  "template": "Extraia 3 ideias lucrativas a partir de: {tema}"
+}
