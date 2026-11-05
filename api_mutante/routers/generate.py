@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Request
 from pydantic import BaseModel, Field
+from typing import Optional
 from api_mutante.core.gemini_service import gemini_service
 from api_mutante.core.config import settings
+from api_mutante.core.security import api_key_manager
 
 router = APIRouter(prefix="/v1", tags=["Generate"])
 
@@ -19,10 +21,15 @@ class GenerateResponse(BaseModel):
     "/generate",
     response_model=GenerateResponse,
     status_code=status.HTTP_200_OK,
-    summary="Gera conteúdo assíncrono via Gemini API"
+    summary="Gera conteúdo assíncrono via Gemini API (Protegido por Chave de API se presente)"
 )
-async def generate_endpoint(request: GenerateRequest) -> GenerateResponse:
+async def generate_endpoint(request: GenerateRequest, http_request: Request) -> GenerateResponse:
     try:
+        # Se cabeçalho X-API-Key for fornecido, aplica controle de cota e rate limit
+        auth_key = http_request.headers.get("X-API-Key")
+        if auth_key:
+            api_key_manager.validate_and_rate_limit(auth_key)
+
         model_to_use = request.model or settings.DEFAULT_MODEL
         result = await gemini_service.generate_async(
             prompt=request.prompt,
@@ -34,6 +41,8 @@ async def generate_endpoint(request: GenerateRequest) -> GenerateResponse:
             content=result,
             model_used=model_to_use
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
