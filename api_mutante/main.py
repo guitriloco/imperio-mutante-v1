@@ -1,18 +1,35 @@
+import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 
 from api_mutante.core.config import settings
 from api_mutante.routers.generate import router as generate_router
 from api_mutante.routers.knowledge import router as knowledge_router
 from api_mutante.routers.prompts import router as prompts_router
+from api_mutante.scheduler import scheduler
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Inicia tarefa periódica de varredura em 02_CONHECIMENTO a cada 60 segundos
+    interval = int(os.getenv("KNOWLEDGE_SCAN_INTERVAL_SEC", "60"))
+    scheduler.start_task(
+        name="scan_unindexed_knowledge",
+        interval_seconds=interval,
+        coro_fn=scheduler.scan_unindexed_knowledge
+    )
+    yield
+    # Finalização limpa ao encerrar o servidor
+    await scheduler.stop()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="Motor assíncrono de API para inteligência e automação do Império Mutante."
+    description="Motor assíncrono de API para inteligência e automação do Império Mutante.",
+    lifespan=lifespan
 )
 
 # Configuração de CORS
@@ -24,20 +41,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Registro de Rotas da API
+# Registro de Rotas
 app.include_router(generate_router)
 app.include_router(knowledge_router)
 app.include_router(prompts_router)
 
 # Caminho do Dashboard
 DASHBOARD_DIR = Path(__file__).resolve().parent.parent / "interface_dashboard"
-
 if DASHBOARD_DIR.exists():
     app.mount("/dashboard", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
 
 @app.get("/", tags=["Health"])
 async def root():
-    # Redireciona raiz diretamente para o Painel Visual
     if (DASHBOARD_DIR / "index.html").exists():
         return RedirectResponse(url="/dashboard/")
     return {
@@ -49,3 +64,7 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health_check():
     return {"status": "healthy"}
+
+@app.get("/v1/scheduler/status", tags=["Scheduler"])
+async def scheduler_status():
+    return scheduler.get_status()
