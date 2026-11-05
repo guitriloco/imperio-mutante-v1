@@ -1,19 +1,80 @@
 {
   "metodo_monetizacao_v1.md": {
-    "title": "Monetização Mutante: Micro-SaaS e Automações com IA",
-    "summary": "Estratégia para lançar micro-serviços automatizados e APIs de alto valor para nichos específicos. O método se baseia em custo marginal zero através de processamento em lote com IA, distribuição acelerada via conteúdo automatizado e cobrança direta para entrega imediata de valor. Inclui um checklist prático para identificar dores, desenvolver backend assíncrono com FastAPI, integrar IA e conectar um frontend minimalista.",
+    "title": "Monetização Mutante: Micro-SaaS e IA",
+    "summary": "Este método detalha uma estratégia para lançar e monetizar micro-serviços automatizados e APIs de alto valor, focando em nichos específicos. Baseia-se em princípios de custo marginal zero através de IA (Gemini Flash) e infraestrutura eficiente, distribuição acelerada de conteúdo técnico e demonstrações, e um modelo de cobrança direta e transparente para entrega imediata de valor.",
     "tags": [
       "Micro-SaaS",
       "Automação",
-      "Inteligência Artificial",
+      "IA",
       "Monetização",
+      "API",
+      "Gemini Flash",
       "FastAPI",
       "Next.js",
-      "Desenvolvimento de Produto",
-      "Estratégia Digital",
-      "API",
-      "Custo Marginal Zero"
+      "Eficiência",
+      "Negócios Digitais",
+      "Lançamento Rápido",
+      "Startup"
     ],
     "json_path": "C:\\Users\\Administrator\\ImperioMutante\\01_CODIGOS\\imperio_mutante_v1\\api_mutante\\data\\metodo_monetizacao_v1.json"
+  },
+  "agentes_autonomos_arquitetura.md": {
+    "title": "Protocolo de Criação de Agentes Autônomos com LLMs",
+    "summary": "O documento detalha a arquitetura essencial para agentes autônomos baseados em LLMs, focando na integração de memória de curto e longo prazo, uso determinístico de ferramentas e fatores críticos de sucesso. Estes incluem prompts com restrições negativas, mecanismos de auto-cura para exceções e a implementação de RAG híbrido com densidade semântica e palavras-chave para recuperação otimizada.",
+    "tags": [
+      "LLM",
+      "Agentes Autônomos",
+      "Arquitetura de IA",
+      "Memória de Agentes",
+      "Banco Vetorial",
+      "Embeddings",
+      "Tool Use",
+      "APIs",
+      "Sandbox",
+      "RAG Híbrido",
+      "Engenharia de Prompts",
+      "Auto-Cura",
+      "Zero Fluff",
+      "Inteligência Artificial",
+      "Desenvolvimento de Software"
+    ],
+    "json_path": "C:\\Users\\Administrator\\ImperioMutante\\01_CODIGOS\\imperio_mutante_v1\\api_mutante\\data\\agentes_autonomos_arquitetura.json"
+  },
+  "arbitragem_trafego_high_ticket.md": {
+    "title": "Arbitragem de Tráfego High-Ticket para Afiliados",
+    "summary": "O guia detalha uma estratégia de arbitragem de tráfego focada em produtos de afiliado high-ticket (comissão mínima de $500), utilizando tráfego ultra-segmentado via Google Ads e Meta Ads. O objetivo é alcançar um ROI superior a 300%, com ênfase na escolha de ofertas exclusivas (software B2B, produtos financeiros), construção de funis de pré-venda com captura de leads, rastreamento avançado de conversões (Pixel com Server-Side API) e escalonamento seletivo de campanhas com CPA comprovado.",
+    "tags": [
+      "Arbitragem de Tráfego",
+      "Marketing de Afiliados",
+      "High-Ticket",
+      "Google Ads",
+      "Meta Ads",
+      "ROI",
+      "CPA",
+      "B2B SaaS",
+      "Produtos Financeiros",
+      "Pixel de Conversão",
+      "Server-Side API",
+      "Captura de Leads",
+      "Funil de Vendas"
+    ],
+    "json_path": "C:\\Users\\Administrator\\ImperioMutante\\01_CODIGOS\\imperio_mutante_v1\\api_mutante\\data\\arbitragem_trafego_high_ticket.json"
+  },
+  "web_example_domain_20261105044251.md": {
+    "title": "Domínios Reservados: Inteligência Tática e Controle de Protocolos",
+    "summary": "O domínio `example.com` é um artefato crítico, explicitamente reservado para documentação e sem função operacional. Ele demonstra a governança meta-protocolar da internet, criando 'zonas neutras' para ilustração de conceitos sem infraestrutura ativa. Para o Império Mutante, `example.com` serve como um estudo de caso vital na gestão de recursos digitais e imposição de regras de uso. Sua compreensão permite refinar táticas de engenharia reversa, simulação e desenvolvimento seguro, testando limites sem expor operações ou consumir recursos em alvos irrelevantes. O uso indevido gera ruído, falsos positivos e vulnerabilidades, sublinhando a necessidade de doutrina rigorosa no uso de recursos de rede.",
+    "tags": [
+      "Domínios Reservados",
+      "example.com",
+      "Governança de Internet",
+      "Meta-protocolo",
+      "Cibersegurança",
+      "Treinamento Tático",
+      "Otimização de Recursos",
+      "Simulação Segura",
+      "Engenharia Reversa",
+      "Desenvolvimento de Protocolos"
+    ],
+    "json_path": "C:\\Users\\Administrator\\ImperioMutante\\01_CODIGOS\\imperio_mutante_v1\\api_mutante\\data\\web_example_domain_20261105044251.json"
   }
 }

@@ -67,13 +67,18 @@ class RAGEngine:
                 with open(file, "r", encoding="utf-8") as f:
                     doc = json.load(f)
 
-                # Monta contexto semântico consolidado
+                # Monta contexto semântico consolidado (com conversão resiliente de tipos)
+                def clean_list(val):
+                    if isinstance(val, list):
+                        return " ".join(str(x) for x in val)
+                    return str(val)
+
                 context_parts = [
                     f"Título: {doc.get('title', '')}",
                     f"Resumo: {doc.get('summary', '')}",
-                    f"Pontos-chave: {' '.join(doc.get('key_takeaways', []))}",
-                    f"Insights acionáveis: {' '.join(doc.get('actionable_insights', []))}",
-                    f"Tags: {' '.join(doc.get('tags', []))}"
+                    f"Pontos-chave: {clean_list(doc.get('key_takeaways', []))}",
+                    f"Insights acionáveis: {clean_list(doc.get('actionable_insights', []))}",
+                    f"Tags: {clean_list(doc.get('tags', []))}"
                 ]
                 searchable_text = "\n".join(context_parts)
 

@@ -7,3 +7,4 @@ pydantic>=2.14.0
 pypdf>=6.21.0
 beautifulsoup4>=4.15.0
 lxml>=6.1.0
+ebooklib>=0.21.0

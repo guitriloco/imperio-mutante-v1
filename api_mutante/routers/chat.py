@@ -53,11 +53,16 @@ async def conversational_chat(request: ChatRequest) -> ChatResponse:
                 title=hit.get("title", "Sem título"),
                 score=hit.get("score", 0.0)
             ))
+            def to_str(items):
+                if isinstance(items, list):
+                    return " ".join(str(x) for x in items)
+                return str(items)
+
             context_blocks.append(
                 f"[DOCUMENTO: {hit.get('title')}]\n"
                 f"Resumo: {hit.get('summary')}\n"
-                f"Pontos-chave: {' '.join(hit.get('key_takeaways', []))}\n"
-                f"Insights acionáveis: {' '.join(hit.get('actionable_insights', []))}"
+                f"Pontos-chave: {to_str(hit.get('key_takeaways', []))}\n"
+                f"Insights acionáveis: {to_str(hit.get('actionable_insights', []))}"
             )
 
         context_str = "\n\n".join(context_blocks) if context_blocks else "Nenhum documento relevante encontrado."

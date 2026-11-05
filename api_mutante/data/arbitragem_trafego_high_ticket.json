@@ -1,0 +1,37 @@
+{
+  "title": "Arbitragem de Tráfego High-Ticket para Afiliados",
+  "summary": "O guia detalha uma estratégia de arbitragem de tráfego focada em produtos de afiliado high-ticket (comissão mínima de $500), utilizando tráfego ultra-segmentado via Google Ads e Meta Ads. O objetivo é alcançar um ROI superior a 300%, com ênfase na escolha de ofertas exclusivas (software B2B, produtos financeiros), construção de funis de pré-venda com captura de leads, rastreamento avançado de conversões (Pixel com Server-Side API) e escalonamento seletivo de campanhas com CPA comprovado.",
+  "key_takeaways": [
+    "Foco em produtos de afiliado com comissão mínima de $500 por conversão.",
+    "Meta de ROI superior a 300% através de tráfego pago ultra-segmentado (Google/Meta Ads).",
+    "Prioridade para ofertas exclusivas de software B2B ou produtos financeiros.",
+    "Necessidade de pré-vendas (pre-sell) com esteira de captura de leads.",
+    "Implementação crucial de Pixel de conversão avançada com Server-Side API para rastreamento preciso.",
+    "Escalonamento de orçamento condicionado à performance comprovada de criativos e CPA."
+  ],
+  "actionable_insights": [
+    "Identificar e negociar acesso a programas de afiliados de software B2B ou produtos financeiros com tickets de comissão acima de $500.",
+    "Desenvolver funis de pré-venda otimizados, incluindo landing pages e iscas digitais para captura de leads, antes de enviar para a oferta principal.",
+    "Investir em infraestrutura de rastreamento robusta, configurando o Pixel com a API Server-Side para garantir a máxima precisão dos dados de conversão.",
+    "Realizar testes A/B rigorosos em campanhas de Google Ads e Meta Ads, focando em segmentação precisa e otimização constante do CPA.",
+    "Estabelecer critérios claros de CPA para escalar apenas os criativos e campanhas com performance positiva, evitando desperdício de orçamento.",
+    "Explorar a criação de audiências personalizadas e lookalikes baseadas nos leads capturados para maximizar o retorno das campanhas."
+  ],
+  "tags": [
+    "Arbitragem de Tráfego",
+    "Marketing de Afiliados",
+    "High-Ticket",
+    "Google Ads",
+    "Meta Ads",
+    "ROI",
+    "CPA",
+    "B2B SaaS",
+    "Produtos Financeiros",
+    "Pixel de Conversão",
+    "Server-Side API",
+    "Captura de Leads",
+    "Funil de Vendas"
+  ],
+  "source_file": "arbitragem_trafego_high_ticket.md",
+  "raw_char_count": 550
+}
