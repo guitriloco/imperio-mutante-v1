@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: mutante-ai-engine
+    runtime: docker
+    plan: starter
+    region: oregon
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DEFAULT_GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: PORT
+        value: 8000
+    healthCheckPath: /health
+    disk:
+      name: mutante-data
+      mountPath: /app/api_mutante/data
+      sizeGB: 1
