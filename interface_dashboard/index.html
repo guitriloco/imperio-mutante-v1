@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Império Mutante - Painel de Controle Soberano</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -31,6 +32,9 @@
         ::-webkit-scrollbar-track { background: #0a0a0a; }
         ::-webkit-scrollbar-thumb { background: #262626; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #404040; }
+        .prose pre { background-color: #0a0a0a; border: 1px solid #222; padding: 0.75rem; border-radius: 0.375rem; }
+        .prose code { color: #00e5ff; font-family: monospace; }
+        .prose strong { color: #ffffff; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col font-sans selection:bg-accentGreen selection:text-black">
@@ -55,6 +59,9 @@
         <button onclick="switchTab('knowledge')" id="tab-btn-knowledge" class="tab-btn px-4 py-3 font-mono text-xs font-semibold uppercase tracking-wider border-b-2 border-transparent text-neutral-400 hover:text-white transition-all">
             [2] Base de Conhecimento (02_CONHECIMENTO)
         </button>
+        <button onclick="switchTab('chat')" id="tab-btn-chat" class="tab-btn px-4 py-3 font-mono text-xs font-semibold uppercase tracking-wider border-b-2 border-transparent text-neutral-400 hover:text-white transition-all">
+            [3] Chat Conversacional (RAG)
+        </button>
     </div>
 
     <!-- Main Content Container -->
@@ -77,9 +84,9 @@
                     <div class="pt-4 border-t border-borderSubtle">
                         <h3 class="text-xs font-mono font-bold uppercase text-neutral-300 mb-2">Importar do Google AI Studio</h3>
                         <div class="space-y-2">
-                            <input id="new-template-name" type="text" placeholder="Nome do template (ex: analista_financeiro)" class="w-full bg-panel border border-borderSubtle rounded px-3 py-1.5 text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-accentGreen">
-                            <textarea id="new-system-instruction" rows="2" placeholder="System Instruction (Diretriz do Sistema)" class="w-full bg-panel border border-borderSubtle rounded px-3 py-1.5 text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-accentGreen"></textarea>
-                            <textarea id="new-template-body" rows="3" placeholder="Template de Prompt (com {contexto} ou {tarefa})" class="w-full bg-panel border border-borderSubtle rounded px-3 py-1.5 text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-accentGreen"></textarea>
+                            <input id="new-template-name" type="text" placeholder="Nome do template" class="w-full bg-panel border border-borderSubtle rounded px-3 py-1.5 text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-accentGreen">
+                            <textarea id="new-system-instruction" rows="2" placeholder="System Instruction" class="w-full bg-panel border border-borderSubtle rounded px-3 py-1.5 text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-accentGreen"></textarea>
+                            <textarea id="new-template-body" rows="3" placeholder="Template de Prompt" class="w-full bg-panel border border-borderSubtle rounded px-3 py-1.5 text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-accentGreen"></textarea>
                             <button onclick="saveNewTemplate()" class="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-mono text-xs py-2 rounded font-semibold transition">Salvar Template</button>
                         </div>
                     </div>
@@ -103,7 +110,7 @@
                     </div>
 
                     <div class="flex justify-end">
-                        <button onclick="executeGenerate()" id="btn-generate" class="bg-accentGreen hover:bg-emerald-400 text-black font-mono text-xs font-bold px-6 py-2.5 rounded uppercase tracking-wider transition-all flex items-center space-x-2">
+                        <button onclick="executeGenerate()" id="btn-generate" class="bg-accentGreen hover:bg-emerald-400 text-black font-mono text-xs font-bold px-6 py-2.5 rounded uppercase tracking-wider transition-all">
                             <span>Executar Inferência Assíncrona</span>
                         </button>
                     </div>
@@ -135,10 +142,43 @@
                     </div>
                 </div>
 
-                <!-- Document Cards Container -->
                 <div id="documents-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                     <div class="text-xs text-neutral-500 font-mono">Carregando índice de conhecimento...</div>
                 </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: CONVERSATIONAL RAG CHAT -->
+        <section id="tab-chat" class="hidden space-y-4">
+            <div class="bg-surface border border-borderSubtle rounded-lg p-5 flex flex-col h-[650px]">
+                
+                <!-- Chat Header -->
+                <div class="flex justify-between items-center border-b border-borderSubtle pb-3 mb-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2 h-2 rounded-full bg-accentCyan"></span>
+                        <h2 class="text-sm font-mono font-bold uppercase text-white">Canal RAG: Consulta ao Vivo à Base de Conhecimento</h2>
+                    </div>
+                    <button onclick="clearChat()" class="text-xs font-mono text-neutral-500 hover:text-white transition">&#x2715; Limpar Chat</button>
+                </div>
+
+                <!-- Chat History Window -->
+                <div id="chat-messages" class="flex-1 overflow-y-auto space-y-4 pr-2">
+                    <div class="flex flex-col items-start bg-panel border border-borderSubtle rounded-lg p-4 max-w-2xl">
+                        <span class="text-[10px] font-mono text-accentCyan mb-1">MUTANTE AGENT</span>
+                        <div class="text-xs font-sans leading-relaxed text-neutral-300">
+                            Ambiente conversacional ativo com busca vetorial contínua em <code>02_CONHECIMENTO</code>. Envie qualquer dúvida ou pergunta estratégica.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Input Controls -->
+                <div class="mt-4 pt-3 border-t border-borderSubtle flex space-x-3">
+                    <input id="chat-input" type="text" onkeydown="if(event.key==='Enter') sendChatMessage()" placeholder="Digite sua mensagem estratégica para o agente..." class="flex-1 bg-panel border border-borderSubtle rounded px-4 py-3 text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-accentCyan">
+                    <button onclick="sendChatMessage()" id="btn-chat-send" class="bg-accentCyan hover:bg-cyan-400 text-black font-mono text-xs font-bold px-6 py-3 rounded uppercase tracking-wider transition">
+                        Enviar
+                    </button>
+                </div>
+
             </div>
         </section>
 
@@ -147,29 +187,33 @@
     <!-- App Logic Script -->
     <script>
         const API_BASE = window.location.origin;
+        let chatHistory = [];
 
-        // Tab Switching
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('border-accentGreen', 'text-white');
+                btn.classList.remove('border-accentGreen', 'border-accentCyan', 'text-white');
                 btn.classList.add('border-transparent', 'text-neutral-400');
             });
             document.getElementById('tab-prompts').classList.add('hidden');
             document.getElementById('tab-knowledge').classList.add('hidden');
+            document.getElementById('tab-chat').classList.add('hidden');
 
             if (tab === 'prompts') {
                 document.getElementById('tab-prompts').classList.remove('hidden');
                 document.getElementById('tab-btn-prompts').classList.add('border-accentGreen', 'text-white');
                 document.getElementById('tab-btn-prompts').classList.remove('border-transparent', 'text-neutral-400');
-            } else {
+            } else if (tab === 'knowledge') {
                 document.getElementById('tab-knowledge').classList.remove('hidden');
                 document.getElementById('tab-btn-knowledge').classList.add('border-accentGreen', 'text-white');
                 document.getElementById('tab-btn-knowledge').classList.remove('border-transparent', 'text-neutral-400');
                 fetchDocuments();
+            } else if (tab === 'chat') {
+                document.getElementById('tab-chat').classList.remove('hidden');
+                document.getElementById('tab-btn-chat').classList.add('border-accentCyan', 'text-white');
+                document.getElementById('tab-btn-chat').classList.remove('border-transparent', 'text-neutral-400');
             }
         }
 
-        // Check Health
         async function checkHealth() {
             try {
                 const res = await fetch(`${API_BASE}/health`);
@@ -183,7 +227,6 @@
             }
         }
 
-        // Fetch Prompts
         let cachedTemplates = [];
         async function fetchPrompts() {
             try {
@@ -215,16 +258,12 @@
             document.getElementById('exec-prompt').value = t.template;
         }
 
-        // Save New Template
         async function saveNewTemplate() {
             const name = document.getElementById('new-template-name').value.trim();
             const sys = document.getElementById('new-system-instruction').value.trim();
             const body = document.getElementById('new-template-body').value.trim();
 
-            if (!name || !body) {
-                alert('Nome e template são obrigatórios!');
-                return;
-            }
+            if (!name || !body) return;
 
             try {
                 const res = await fetch(`${API_BASE}/v1/prompts`, {
@@ -233,18 +272,11 @@
                     body: JSON.stringify({ name, system_instruction: sys, template: body })
                 });
                 if (res.ok) {
-                    alert('Template salvo com sucesso!');
-                    document.getElementById('new-template-name').value = '';
-                    document.getElementById('new-system-instruction').value = '';
-                    document.getElementById('new-template-body').value = '';
                     fetchPrompts();
                 }
-            } catch (e) {
-                alert('Falha ao salvar template.');
-            }
+            } catch (e) {}
         }
 
-        // Execute Generate
         async function executeGenerate() {
             const prompt = document.getElementById('exec-prompt').value.trim();
             const system = document.getElementById('exec-system-instruction').value.trim();
@@ -255,7 +287,7 @@
             if (!prompt) return;
 
             btn.disabled = true;
-            btn.innerText = 'Processando com Gemini...';
+            btn.innerText = 'Processando...';
             outputEl.innerText = '[Iniciando pipeline assíncrono...]';
             const start = performance.now();
 
@@ -263,29 +295,19 @@
                 const res = await fetch(`${API_BASE}/v1/generate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt: prompt,
-                        system_instruction: system || null
-                    })
+                    body: JSON.stringify({ prompt, system_instruction: system || null })
                 });
                 const data = await res.json();
-                const elapsed = ((performance.now() - start) / 1000).toFixed(2);
-                timeEl.innerText = `${elapsed}s`;
-
-                if (data.success) {
-                    outputEl.innerText = data.content;
-                } else {
-                    outputEl.innerText = `Erro: ${JSON.stringify(data)}`;
-                }
+                timeEl.innerText = `${((performance.now() - start) / 1000).toFixed(2)}s`;
+                outputEl.innerText = data.success ? data.content : JSON.stringify(data);
             } catch (e) {
-                outputEl.innerText = `Erro de comunicação: ${e.message}`;
+                outputEl.innerText = `Erro: ${e.message}`;
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Executar Inferência Assíncrona';
             }
         }
 
-        // Fetch Documents
         async function fetchDocuments() {
             const container = document.getElementById('documents-grid');
             try {
@@ -295,7 +317,7 @@
 
                 const entries = Object.entries(docs);
                 if (entries.length === 0) {
-                    container.innerHTML = '<div class="text-xs text-neutral-500 font-mono">Nenhum documento indexado ainda. Coloque arquivos em 02_CONHECIMENTO e clique em Ingerir.</div>';
+                    container.innerHTML = '<div class="text-xs text-neutral-500 font-mono">Nenhum documento indexado ainda.</div>';
                     return;
                 }
 
@@ -313,40 +335,115 @@
                             <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-accentGreen border border-emerald-800">INDEXADO</span>
                         </div>
                         <p class="text-xs text-neutral-300 font-sans leading-relaxed">${info.summary || 'Sem resumo disponível.'}</p>
-                        <div class="pt-2 flex flex-wrap gap-1.5 border-t border-borderSubtle">
-                            ${tagsHtml}
-                        </div>
+                        <div class="pt-2 flex flex-wrap gap-1.5 border-t border-borderSubtle">${tagsHtml}</div>
                     `;
                     container.appendChild(card);
                 });
-            } catch (e) {
-                container.innerHTML = `<div class="text-xs text-red-400 font-mono">Erro ao carregar documentos: ${e.message}</div>`;
-            }
+            } catch (e) {}
         }
 
-        // Trigger Ingestion
         async function triggerIngest() {
             const btn = document.getElementById('btn-ingest');
             btn.disabled = true;
-            btn.innerText = 'Ingerindo com Gemini...';
+            btn.innerText = 'Ingerindo...';
             try {
-                const res = await fetch(`${API_BASE}/v1/knowledge/ingest`, {
+                await fetch(`${API_BASE}/v1/knowledge/ingest`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({})
                 });
-                const data = await res.json();
-                alert(`Ingestão concluída! ${data.processed_count} arquivo(s) processados.`);
                 fetchDocuments();
-            } catch (e) {
-                alert('Falha na ingestão: ' + e.message);
-            } finally {
+            } catch (e) {}
+            finally {
                 btn.disabled = false;
                 btn.innerText = 'Ingerir Novos Arquivos';
             }
         }
 
-        // Initialize
+        // Conversational Chat Logic
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = '';
+            const chatBox = document.getElementById('chat-messages');
+
+            // Render User Bubble
+            const userBubble = document.createElement('div');
+            userBubble.className = 'flex flex-col items-end self-end ml-auto';
+            userBubble.innerHTML = `
+                <span class="text-[10px] font-mono text-neutral-400 mb-1">OPERADOR</span>
+                <div class="bg-neutral-800 border border-neutral-700 text-white rounded-lg px-4 py-2 text-xs font-sans max-w-xl">
+                    ${message}
+                </div>
+            `;
+            chatBox.appendChild(userBubble);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            chatHistory.push({ role: 'user', content: message });
+
+            // Loading Agent Bubble
+            const agentBubble = document.createElement('div');
+            agentBubble.className = 'flex flex-col items-start bg-panel border border-borderSubtle rounded-lg p-4 max-w-2xl';
+            const loadingId = 'loading-' + Date.now();
+            agentBubble.innerHTML = `
+                <span class="text-[10px] font-mono text-accentCyan mb-1">MUTANTE AGENT</span>
+                <div id="${loadingId}" class="text-xs font-mono text-neutral-500 animate-pulse">Consultando RAG & gerando resposta...</div>
+            `;
+            chatBox.appendChild(agentBubble);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const res = await fetch(`${API_BASE}/v1/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        history: chatHistory.slice(-6)
+                    })
+                });
+                const data = await res.json();
+                const loadEl = document.getElementById(loadingId);
+
+                if (data.success) {
+                    chatHistory.push({ role: 'model', content: data.response });
+                    const renderedHtml = marked.parse(data.response);
+
+                    const sourcesPills = (data.sources || []).map(s => `
+                        <span class="px-2 py-0.5 rounded text-[10px] bg-neutral-900 border border-neutral-700 text-accentCyan font-mono">
+                            ${s.title} (Similaridade: ${(s.score * 100).toFixed(1)}%)
+                        </span>
+                    `).join(' ');
+
+                    loadEl.outerHTML = `
+                        <div class="prose prose-invert text-xs leading-relaxed max-w-none">
+                            ${renderedHtml}
+                        </div>
+                        ${sourcesPills ? `<div class="mt-3 pt-2 border-t border-borderSubtle flex flex-wrap gap-2 items-center"><span class="text-[10px] font-mono text-neutral-500">Fontes RAG:</span> ${sourcesPills}</div>` : ''}
+                    `;
+                } else {
+                    loadEl.innerText = `Erro: ${JSON.stringify(data)}`;
+                }
+            } catch (e) {
+                document.getElementById(loadingId).innerText = `Erro de conexão: ${e.message}`;
+            }
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function clearChat() {
+            chatHistory = [];
+            document.getElementById('chat-messages').innerHTML = `
+                <div class="flex flex-col items-start bg-panel border border-borderSubtle rounded-lg p-4 max-w-2xl">
+                    <span class="text-[10px] font-mono text-accentCyan mb-1">MUTANTE AGENT</span>
+                    <div class="text-xs font-sans leading-relaxed text-neutral-300">
+                        Chat reinicializado. Pronto para novas consultas com RAG.
+                    </div>
+                </div>
+            `;
+        }
+
         checkHealth();
         fetchPrompts();
     </script>

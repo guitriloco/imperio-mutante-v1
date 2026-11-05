@@ -11,11 +11,11 @@ from api_mutante.routers.generate import router as generate_router
 from api_mutante.routers.knowledge import router as knowledge_router
 from api_mutante.routers.prompts import router as prompts_router
 from api_mutante.routers.rag import router as rag_router
+from api_mutante.routers.chat import router as chat_router
 from api_mutante.scheduler import scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Inicia tarefa periódica de varredura em 02_CONHECIMENTO a cada 60 segundos
     interval = int(os.getenv("KNOWLEDGE_SCAN_INTERVAL_SEC", "60"))
     scheduler.start_task(
         name="scan_unindexed_knowledge",
@@ -23,7 +23,6 @@ async def lifespan(app: FastAPI):
         coro_fn=scheduler.scan_unindexed_knowledge
     )
     yield
-    # Finalização limpa ao encerrar o servidor
     await scheduler.stop()
 
 app = FastAPI(
@@ -47,6 +46,7 @@ app.include_router(generate_router)
 app.include_router(knowledge_router)
 app.include_router(prompts_router)
 app.include_router(rag_router)
+app.include_router(chat_router)
 
 # Caminho do Dashboard
 DASHBOARD_DIR = Path(__file__).resolve().parent.parent / "interface_dashboard"
