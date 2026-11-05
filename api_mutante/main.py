@@ -10,6 +10,7 @@ from api_mutante.core.config import settings
 from api_mutante.routers.generate import router as generate_router
 from api_mutante.routers.knowledge import router as knowledge_router
 from api_mutante.routers.prompts import router as prompts_router
+from api_mutante.routers.rag import router as rag_router
 from api_mutante.scheduler import scheduler
 
 @asynccontextmanager
@@ -45,6 +46,7 @@ app.add_middleware(
 app.include_router(generate_router)
 app.include_router(knowledge_router)
 app.include_router(prompts_router)
+app.include_router(rag_router)
 
 # Caminho do Dashboard
 DASHBOARD_DIR = Path(__file__).resolve().parent.parent / "interface_dashboard"

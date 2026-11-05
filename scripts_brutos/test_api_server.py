@@ -16,8 +16,8 @@ def run_tests():
     client = TestClient(app)
     
     # 1. Teste Root / Health
-    print("[1/2] Testando endpoint de integridade GET / ...")
-    health_res = client.get("/")
+    print("[1/2] Testando endpoint de integridade GET /health ...")
+    health_res = client.get("/health")
     assert health_res.status_code == 200, f"Falha no health check: {health_res.text}"
     print(f"      Status: 200 OK -> {health_res.json()}")
     

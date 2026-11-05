@@ -3,16 +3,14 @@ from google.genai import types
 from api_mutante.core.config import settings
 
 class GeminiService:
-    def __init__(self):
-        self._client = None
+    def get_client(self) -> genai.Client:
+        if not settings.GEMINI_API_KEY:
+            raise ValueError("GEMINI_API_KEY não configurada no ambiente ou .env.")
+        return genai.Client(api_key=settings.GEMINI_API_KEY)
 
     @property
     def client(self) -> genai.Client:
-        if self._client is None:
-            if not settings.GEMINI_API_KEY:
-                raise ValueError("GEMINI_API_KEY não configurada no ambiente ou .env.")
-            self._client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        return self._client
+        return self.get_client()
 
     async def generate_async(
         self,
@@ -29,7 +27,8 @@ class GeminiService:
                 system_instruction=system_instruction
             )
 
-        response = await self.client.aio.models.generate_content(
+        client = self.get_client()
+        response = await client.aio.models.generate_content(
             model=target_model,
             contents=prompt,
             config=config
