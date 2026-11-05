@@ -16,6 +16,7 @@ from api_mutante.routers.scraper import router as scraper_router
 from api_mutante.routers.swarm import router as swarm_router
 from api_mutante.routers.mass_ingest import router as mass_ingest_router
 from api_mutante.routers.monetization import router as monetization_router
+from api_mutante.routers.billing import router as billing_router
 from api_mutante.scheduler import scheduler
 
 @asynccontextmanager
@@ -55,6 +56,7 @@ app.include_router(scraper_router)
 app.include_router(swarm_router)
 app.include_router(mass_ingest_router)
 app.include_router(monetization_router)
+app.include_router(billing_router)
 
 # Caminho do Dashboard
 DASHBOARD_DIR = Path(__file__).resolve().parent.parent / "interface_dashboard"

@@ -1,0 +1,23 @@
+[
+  {
+    "order_id": "ord_1793865816",
+    "event_type": "checkout.session.completed",
+    "customer_email": "comprador.pro@empresa.com",
+    "customer_name": "Sócio Diretor Pro",
+    "tier": "PRO",
+    "api_key_issued": "mutante_pro_wl4RG9jn8-RKqAPOYINXEu_QOfkwFngX7Sc6Nxlf8r0",
+    "timestamp": "2026-11-05T05:03:36.919261",
+    "status": "PROVISIONED"
+  },
+  {
+    "order_id": "ord_1793865816_MP_PIX_TXID_998877",
+    "customer_email": "vip.enterprise@corporativo.com",
+    "customer_name": "Corporação Mutante VIP",
+    "tier": "ENTERPRISE",
+    "amount_paid": 497.0,
+    "payment_ref": "MP_PIX_TXID_998877",
+    "api_key_issued": "mutante_enterprise_OYM67yrgXQrKMmC888NOaRbpyn4VI7QUjvyRRuAGH9c",
+    "timestamp": "2026-11-05T05:03:36.929354",
+    "status": "ACTIVE"
+  }
+]

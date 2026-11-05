@@ -5,5 +5,19 @@
     "created_at": "2026-11-05T04:59:33.739794",
     "total_requests": 5,
     "is_active": true
+  },
+  "0af4d2d0ecb0fc0357ade8a6416a5f81f92d3cf5c4b425f408a17d2f3f78c76f": {
+    "owner": "Sócio Diretor Pro (comprador.pro@empresa.com)",
+    "tier": "PRO",
+    "created_at": "2026-11-05T05:03:36.918641",
+    "total_requests": 0,
+    "is_active": true
+  },
+  "a081df314e5dd863cc8b3c1d70a2213f591b8f2972fea8385b8e296d70534bcc": {
+    "owner": "Corporação Mutante VIP (vip.enterprise@corporativo.com)",
+    "tier": "ENTERPRISE",
+    "created_at": "2026-11-05T05:03:36.928639",
+    "total_requests": 0,
+    "is_active": true
   }
 }
