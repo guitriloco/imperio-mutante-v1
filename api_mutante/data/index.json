@@ -1,0 +1,19 @@
+{
+  "metodo_monetizacao_v1.md": {
+    "title": "Monetização Micro-SaaS e Automações com IA",
+    "summary": "Este método detalha uma estratégia para lançar e monetizar micro-serviços automatizados e APIs de alto valor, focando em nichos específicos. Os pilares incluem custo marginal zero via IA (Gemini Flash), distribuição acelerada através de conteúdo automatizado e cobrança direta para entrega imediata de valor.",
+    "tags": [
+      "Micro-SaaS",
+      "Automação",
+      "Inteligência Artificial",
+      "Monetização",
+      "API",
+      "Negócios Digitais",
+      "FastAPI",
+      "Next.js",
+      "Custo Marginal Zero",
+      "Nichos de Mercado"
+    ],
+    "json_path": "C:\\Users\\Administrator\\ImperioMutante\\01_CODIGOS\\imperio_mutante_v1\\api_mutante\\data\\metodo_monetizacao_v1.json"
+  }
+}

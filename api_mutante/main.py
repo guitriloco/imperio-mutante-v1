@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api_mutante.core.config import settings
 from api_mutante.routers.generate import router as generate_router
+from api_mutante.routers.knowledge import router as knowledge_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -20,6 +21,7 @@ app.add_middleware(
 
 # Registro de Rotas
 app.include_router(generate_router)
+app.include_router(knowledge_router)
 
 @app.get("/", tags=["Health"])
 async def root():
