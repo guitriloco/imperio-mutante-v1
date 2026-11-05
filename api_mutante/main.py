@@ -12,6 +12,7 @@ from api_mutante.routers.knowledge import router as knowledge_router
 from api_mutante.routers.prompts import router as prompts_router
 from api_mutante.routers.rag import router as rag_router
 from api_mutante.routers.chat import router as chat_router
+from api_mutante.routers.scraper import router as scraper_router
 from api_mutante.scheduler import scheduler
 
 @asynccontextmanager
@@ -47,6 +48,7 @@ app.include_router(knowledge_router)
 app.include_router(prompts_router)
 app.include_router(rag_router)
 app.include_router(chat_router)
+app.include_router(scraper_router)
 
 # Caminho do Dashboard
 DASHBOARD_DIR = Path(__file__).resolve().parent.parent / "interface_dashboard"
