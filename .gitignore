@@ -1,8 +1,38 @@
-﻿__pycache__/
-*.py[cod]
-*.class
-.env
-venv/
+# Ambientes Virtuais e Dependências
 .venv/
-.idea/
+venv/
+ENV/
+env/
+
+# Segredos e Configurações Sensíveis
+.env
+.env.*
+!.env.example
+
+# Python Cache & Compilados
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# IDEs e Editores
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos de Sistema Operacional (Windows / Mac)
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs e Temporários
+*.log
+temp/
+tmp/
