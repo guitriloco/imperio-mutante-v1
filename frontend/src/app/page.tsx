@@ -8,6 +8,10 @@ import {
   KnowledgeDocument,
   TierConfig,
   GeneratedKeyResponse,
+  SwarmStatus,
+  PlanStep,
+  AuditResponse,
+  SelfHealingResponse,
 } from "@/lib/api";
 import {
   Terminal,
@@ -21,10 +25,15 @@ import {
   AlertCircle,
   ExternalLink,
   Zap,
+  Bot,
+  Cpu,
+  Bug,
+  Play,
+  ShieldAlert,
 } from "lucide-react";
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"chat" | "knowledge" | "monetization">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "knowledge" | "monetization" | "swarm">("chat");
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [activeApiKey, setActiveApiKey] = useState<string>("");
 
@@ -54,9 +63,26 @@ export default function Home() {
   const [generatedKey, setGeneratedKey] = useState<GeneratedKeyResponse | null>(null);
   const [isGeneratingKey, setIsGeneratingKey] = useState(false);
 
-  // Check API Health
+  // Swarm State
+  const [swarmStatus, setSwarmStatus] = useState<SwarmStatus | null>(null);
+  const [swarmMode, setSwarmMode] = useState<"heal" | "plan" | "audit">("heal");
+  const [missionInput, setMissionInput] = useState("Construir endpoint de rate limiting por sliding-window com persistencia em SQLite");
+  const [missionPlan, setMissionPlan] = useState<PlanStep[] | null>(null);
+  const [isPlanning, setIsPlanning] = useState(false);
+
+  const [auditCodeInput, setAuditCodeInput] = useState("def process_request(user_input):\n    # Alerta de seguranca proposital\n    return eval(user_input)\n");
+  const [auditResult, setAuditResult] = useState<AuditResponse | null>(null);
+  const [isAuditing, setIsAuditing] = useState(false);
+
+  const [healScriptPath, setHealScriptPath] = useState("scripts_brutos/test_api_server.py");
+  const [healResult, setHealResult] = useState<SelfHealingResponse | null>(null);
+  const [isHealing, setIsHealing] = useState(false);
+  const [terminalOutput, setTerminalOutput] = useState<string>("");
+
+  // Check API Health & Swarm Status
   useEffect(() => {
     checkHealth();
+    loadSwarmStatus();
     const interval = setInterval(checkHealth, 20000);
     return () => clearInterval(interval);
   }, []);
@@ -76,6 +102,8 @@ export default function Home() {
       loadDocuments();
     } else if (activeTab === "monetization") {
       loadTiers();
+    } else if (activeTab === "swarm") {
+      loadSwarmStatus();
     }
   }, [activeTab]);
 
@@ -104,6 +132,15 @@ export default function Home() {
     }
   }
 
+  async function loadSwarmStatus() {
+    try {
+      const data = await api.getSwarmStatus();
+      setSwarmStatus(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   async function handleSendMessage(e?: React.FormEvent) {
     if (e) e.preventDefault();
     if (!inputMessage.trim() || isSending) return;
@@ -111,7 +148,6 @@ export default function Home() {
     const userText = inputMessage.trim();
     setInputMessage("");
 
-    // Insere mensagem do usuário e reserva balão para streaming da resposta
     setMessages((prev) => [
       ...prev,
       { role: "user", content: userText },
@@ -212,6 +248,63 @@ export default function Home() {
     }
   }
 
+  async function handlePlanMission(e: React.FormEvent) {
+    e.preventDefault();
+    if (!missionInput.trim() || isPlanning) return;
+    setIsPlanning(true);
+    try {
+      const res = await api.planSwarmMission(missionInput.trim());
+      setMissionPlan(res.plan);
+      setTerminalOutput(`[TASK PLANNER] Missão decomposta em ${res.plan.length} etapas atômicas.\n` + JSON.stringify(res.plan, null, 2));
+    } catch (err: any) {
+      alert(`Falha no planejador: ${err.message}`);
+    } finally {
+      setIsPlanning(false);
+    }
+  }
+
+  async function handleAuditCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!auditCodeInput.trim() || isAuditing) return;
+    setIsAuditing(true);
+    try {
+      const res = await api.auditCode(auditCodeInput.trim());
+      setAuditResult(res);
+      setTerminalOutput(
+        `[CODE AUDITOR] Análise concluída:\nVálido: ${res.is_valid}\nSeveridade: ${res.severity}\n\nProblemas identificados:\n` +
+        (res.issues.length > 0 ? res.issues.map((iss, i) => `  [${i + 1}] ${iss}`).join("\n") : "  Nenhum anti-pattern detectado.")
+      );
+    } catch (err: any) {
+      alert(`Falha na auditoria: ${err.message}`);
+    } finally {
+      setIsAuditing(false);
+    }
+  }
+
+  async function handleSelfHeal(e: React.FormEvent) {
+    e.preventDefault();
+    if (!healScriptPath.trim() || isHealing) return;
+    setIsHealing(true);
+    setTerminalOutput(`[SWARM ENGINE] Iniciando ciclo de auto-cura no script: ${healScriptPath}...\n`);
+    try {
+      const res = await api.triggerSelfHealing(healScriptPath.trim(), 3);
+      setHealResult(res);
+      const logStr = [
+        `[STATUS]: ${res.success ? "SUCESSO (CÓDIGO CURADO)" : "FALHA RESIDUAL"}`,
+        `[CICLOS DE CURA UTILIZADOS]: ${res.healing_cycles_used}`,
+        `--- STDOUT ---`,
+        res.final_stdout || "(vazio)",
+        `--- STDERR ---`,
+        res.final_stderr || "(vazio)"
+      ].join("\n");
+      setTerminalOutput(logStr);
+    } catch (err: any) {
+      setTerminalOutput(`[ERRO CRÍTICO NO SWARM]: ${err.message}`);
+    } finally {
+      setIsHealing(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#050505] text-[#e5e5e5] flex flex-col font-mono selection:bg-[#00ff66] selection:text-black">
       {/* Top Header */}
@@ -257,7 +350,7 @@ export default function Home() {
       </header>
 
       {/* Navigation Sub-header */}
-      <nav className="border-b border-[#1a1a1a] bg-[#0c0c0c] px-6 flex gap-2">
+      <nav className="border-b border-[#1a1a1a] bg-[#0c0c0c] px-6 flex flex-wrap gap-2">
         <button
           onClick={() => setActiveTab("chat")}
           className={`flex items-center gap-2 px-5 py-3 text-xs uppercase font-bold tracking-wider border-b-2 transition-all ${
@@ -292,6 +385,21 @@ export default function Home() {
         >
           <Key className="w-4 h-4 text-amber-400" />
           [3] Licenciamento & Tiers
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveTab("swarm");
+            loadSwarmStatus();
+          }}
+          className={`flex items-center gap-2 px-5 py-3 text-xs uppercase font-bold tracking-wider border-b-2 transition-all ${
+            activeTab === "swarm"
+              ? "border-purple-500 text-white bg-[#121212]"
+              : "border-transparent text-[#666] hover:text-[#bbb]"
+          }`}
+        >
+          <Bot className="w-4 h-4 text-purple-400" />
+          [4] Swarm War Room
         </button>
       </nav>
 
@@ -579,6 +687,289 @@ export default function Home() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: SWARM WAR ROOM */}
+        {activeTab === "swarm" && (
+          <div className="space-y-6">
+            {/* Swarm Agents Status Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-[#0d0d0d] border border-purple-500/30 rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white flex items-center gap-2">
+                    <Cpu className="w-4 h-4 text-purple-400" /> TaskPlannerAgent
+                  </span>
+                  <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded font-bold">
+                    ONLINE
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#777]">Decomposição atômica de objetivos e roteirização</p>
+                <div className="text-[10px] text-[#555] font-mono">ENGINE: gemini-2.5-flash</div>
+              </div>
+
+              <div className="bg-[#0d0d0d] border border-blue-500/30 rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-blue-400" /> CodeAuditorAgent
+                  </span>
+                  <span className="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded font-bold">
+                    ONLINE
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#777]">Análise estática, vulnerabilidades e anti-patterns</p>
+                <div className="text-[10px] text-[#555] font-mono">ENGINE: gemini-2.5-flash</div>
+              </div>
+
+              <div className="bg-[#0d0d0d] border border-emerald-500/30 rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white flex items-center gap-2">
+                    <Play className="w-4 h-4 text-emerald-400" /> TestRunnerAgent
+                  </span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">
+                    ONLINE
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#777]">Execução em subprocesso e captura stdout/stderr</p>
+                <div className="text-[10px] text-[#555] font-mono">RUNTIME: native-python</div>
+              </div>
+
+              <div className="bg-[#0d0d0d] border border-amber-500/30 rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white flex items-center gap-2">
+                    <Bug className="w-4 h-4 text-amber-400" /> SelfHealingCore
+                  </span>
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-bold animate-pulse">
+                    ARMED
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#777]">Loop de regeneração de patches com contexto RAG</p>
+                <div className="text-[10px] text-[#555] font-mono">CYCLES: 3 Max Auto-Patch</div>
+              </div>
+            </div>
+
+            {/* Mode Switcher */}
+            <div className="flex gap-2 border-b border-[#1f1f1f] pb-3">
+              <button
+                onClick={() => setSwarmMode("heal")}
+                className={`px-4 py-2 text-xs font-bold uppercase rounded transition ${
+                  swarmMode === "heal"
+                    ? "bg-amber-400 text-black"
+                    : "bg-[#141414] text-[#888] hover:text-white"
+                }`}
+              >
+                [A] Self-Healing Engine
+              </button>
+              <button
+                onClick={() => setSwarmMode("plan")}
+                className={`px-4 py-2 text-xs font-bold uppercase rounded transition ${
+                  swarmMode === "plan"
+                    ? "bg-purple-500 text-white"
+                    : "bg-[#141414] text-[#888] hover:text-white"
+                }`}
+              >
+                [B] Task Planner
+              </button>
+              <button
+                onClick={() => setSwarmMode("audit")}
+                className={`px-4 py-2 text-xs font-bold uppercase rounded transition ${
+                  swarmMode === "audit"
+                    ? "bg-blue-500 text-white"
+                    : "bg-[#141414] text-[#888] hover:text-white"
+                }`}
+              >
+                [C] Code Auditor
+              </button>
+            </div>
+
+            {/* Dynamic Mission Panel */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column: Form Controls */}
+              <div className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-lg p-5 space-y-4">
+                {swarmMode === "heal" && (
+                  <form onSubmit={handleSelfHeal} className="space-y-4">
+                    <div>
+                      <label className="text-xs text-[#888] font-bold uppercase block mb-1.5">
+                        Caminho do Script Python para Execução & Auto-Cura:
+                      </label>
+                      <input
+                        type="text"
+                        value={healScriptPath}
+                        onChange={(e) => setHealScriptPath(e.target.value)}
+                        placeholder="scripts_brutos/test_api_server.py"
+                        className="w-full bg-[#141414] border border-[#222] rounded px-4 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isHealing}
+                      className="w-full bg-amber-400 hover:bg-amber-500 text-black font-bold py-2.5 rounded text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition disabled:opacity-50"
+                    >
+                      <Bug className="w-4 h-4" />
+                      {isHealing ? "Executando e Auto-Curando..." : "Disparar Loop de Auto-Cura"}
+                    </button>
+                  </form>
+                )}
+
+                {swarmMode === "plan" && (
+                  <form onSubmit={handlePlanMission} className="space-y-4">
+                    <div>
+                      <label className="text-xs text-[#888] font-bold uppercase block mb-1.5">
+                        Objetivo Estratégico ou Missão Técnica:
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={missionInput}
+                        onChange={(e) => setMissionInput(e.target.value)}
+                        className="w-full bg-[#141414] border border-[#222] rounded px-4 py-2.5 text-xs text-white focus:outline-none focus:border-purple-400 resize-none"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isPlanning}
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition disabled:opacity-50"
+                    >
+                      <Cpu className="w-4 h-4" />
+                      {isPlanning ? "Decompondo Missão..." : "Decompor em Checklist Atômico"}
+                    </button>
+                  </form>
+                )}
+
+                {swarmMode === "audit" && (
+                  <form onSubmit={handleAuditCode} className="space-y-4">
+                    <div>
+                      <label className="text-xs text-[#888] font-bold uppercase block mb-1.5">
+                        Código-fonte Python para Auditoria Estática:
+                      </label>
+                      <textarea
+                        rows={6}
+                        value={auditCodeInput}
+                        onChange={(e) => setAuditCodeInput(e.target.value)}
+                        className="w-full bg-[#141414] border border-[#222] rounded px-4 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-blue-400 resize-none"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isAuditing}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition disabled:opacity-50"
+                    >
+                      <ShieldAlert className="w-4 h-4" />
+                      {isAuditing ? "Auditoria em Andamento..." : "Executar Auditoria de Segurança"}
+                    </button>
+                  </form>
+                )}
+
+                {/* Structured Result Display */}
+                {swarmMode === "plan" && missionPlan && (
+                  <div className="mt-4 space-y-2 border-t border-[#1f1f1f] pt-4">
+                    <h4 className="text-xs font-bold text-purple-400 uppercase">
+                      Checklist Decomposto ({missionPlan.length} passos):
+                    </h4>
+                    <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                      {missionPlan.map((p, idx) => (
+                        <div key={idx} className="bg-[#111] border border-[#222] p-2.5 rounded text-xs">
+                          <div className="flex items-center justify-between text-purple-300 font-bold mb-1">
+                            <span>Passo {p.step}</span>
+                            <span className="text-[10px] text-[#666] font-mono">{p.target_file}</span>
+                          </div>
+                          <p className="text-[#ccc] text-[11px]">{p.action}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {swarmMode === "audit" && auditResult && (
+                  <div className="mt-4 space-y-2 border-t border-[#1f1f1f] pt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white uppercase">Diagnóstico do Código:</span>
+                      <span
+                        className={`text-[10px] px-2.5 py-0.5 rounded font-bold uppercase ${
+                          auditResult.severity === "HIGH"
+                            ? "bg-red-500/20 text-red-400 border border-red-500/40"
+                            : auditResult.severity === "MEDIUM"
+                            ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                            : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                        }`}
+                      >
+                        Severidade: {auditResult.severity}
+                      </span>
+                    </div>
+                    {auditResult.issues.length > 0 ? (
+                      <ul className="space-y-1.5 mt-2">
+                        {auditResult.issues.map((iss, i) => (
+                          <li key={i} className="text-[11px] text-red-300 bg-red-950/20 border border-red-900/40 p-2 rounded flex items-start gap-1.5">
+                            <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" />
+                            <span>{iss}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-xs text-emerald-400 bg-emerald-950/20 border border-emerald-900/40 p-3 rounded flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" /> Nenhum anti-pattern crítico detectado.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {swarmMode === "heal" && healResult && (
+                  <div className="mt-4 space-y-2 border-t border-[#1f1f1f] pt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white uppercase">Resultado do Self-Healing:</span>
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                          healResult.success ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                        }`}
+                      >
+                        {healResult.success ? "REPARADO COM SUCESSO" : "FALHA RESIDUAL"}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[#888]">
+                      Ciclos executados: <span className="text-white font-bold">{healResult.healing_cycles_used}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Interactive Vantablack Terminal Console */}
+              <div className="bg-[#050505] border border-[#222] rounded-lg overflow-hidden flex flex-col h-[540px]">
+                <div className="px-4 py-2.5 bg-[#0e0e0e] border-b border-[#222] flex items-center justify-between text-xs">
+                  <span className="text-[#888] font-bold flex items-center gap-2">
+                    <Terminal className="w-3.5 h-3.5 text-[#00ff66]" />
+                    SUBPROCESS & ENGINE CONSOLE
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setTerminalOutput("")}
+                      className="text-[10px] text-[#666] hover:text-[#bbb] uppercase"
+                    >
+                      Limpar
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (terminalOutput) navigator.clipboard.writeText(terminalOutput);
+                      }}
+                      className="text-[10px] text-[#00e5ff] hover:underline uppercase"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex-1 p-4 font-mono text-xs overflow-y-auto space-y-2 selection:bg-purple-900 selection:text-white">
+                  <div className="text-[#555]">// Sessão terminal do Enxame Império Mutante ativa.</div>
+                  {terminalOutput ? (
+                    <pre className="text-[#00ff66] whitespace-pre-wrap leading-relaxed">
+                      {terminalOutput}
+                    </pre>
+                  ) : (
+                    <div className="text-[#444] italic mt-4">
+                      Aguardando disparo de missão, auditoria ou auto-cura...
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}

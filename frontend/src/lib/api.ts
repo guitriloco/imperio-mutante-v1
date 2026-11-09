@@ -40,6 +40,46 @@ export interface GeneratedKeyResponse {
   allowed_models: string[];
 }
 
+export interface SwarmAgentInfo {
+  role: string;
+  state: string;
+  model: string;
+}
+
+export interface SwarmStatus {
+  status: string;
+  agents: Record<string, SwarmAgentInfo>;
+  healing_engine_active: boolean;
+}
+
+export interface PlanStep {
+  step: number;
+  action: string;
+  target_file: string;
+}
+
+export interface PlanResponse {
+  success: boolean;
+  task_description: string;
+  plan: PlanStep[];
+}
+
+export interface AuditResponse {
+  success: boolean;
+  is_valid: boolean;
+  severity: "NONE" | "LOW" | "MEDIUM" | "HIGH";
+  issues: string[];
+}
+
+export interface SelfHealingResponse {
+  success: boolean;
+  script_path: string;
+  healing_cycles_used: number;
+  healing_history: Array<{ cycle: number; error_resolved: string; patch_applied: boolean }>;
+  final_stdout: string;
+  final_stderr: string;
+}
+
 export const api = {
   async getHealth(): Promise<{ status: string }> {
     const res = await fetch(`${API_BASE_URL}/health`);
@@ -189,6 +229,64 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(err.detail || "Falha na pesquisa web");
+    }
+    return res.json();
+  },
+
+  async getSwarmStatus(): Promise<SwarmStatus> {
+    const res = await fetch(`${API_BASE_URL}/v1/swarm/status`);
+    if (!res.ok) throw new Error("Falha ao obter status do enxame");
+    return res.json();
+  },
+
+  async planSwarmMission(taskDescription: string): Promise<PlanResponse> {
+    const res = await fetch(`${API_BASE_URL}/v1/swarm/plan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task_description: taskDescription }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Falha no planejador");
+    }
+    return res.json();
+  },
+
+  async auditCode(codeSnippet: string, context?: string): Promise<AuditResponse> {
+    const res = await fetch(`${API_BASE_URL}/v1/swarm/audit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code_snippet: codeSnippet, context }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Falha na auditoria");
+    }
+    return res.json();
+  },
+
+  async runTestSandbox(scriptPath: string): Promise<{ success: boolean; exit_code: number; stdout: string; stderr: string }> {
+    const res = await fetch(`${API_BASE_URL}/v1/swarm/run-test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ script_path: scriptPath }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Falha ao executar teste");
+    }
+    return res.json();
+  },
+
+  async triggerSelfHealing(scriptPath: string, maxCycles: number = 3): Promise<SelfHealingResponse> {
+    const res = await fetch(`${API_BASE_URL}/v1/swarm/self-heal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ script_path: scriptPath, max_healing_cycles: maxCycles }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Falha no loop de auto-cura");
     }
     return res.json();
   }
