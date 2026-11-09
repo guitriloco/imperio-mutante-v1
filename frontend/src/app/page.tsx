@@ -110,19 +110,60 @@ export default function Home() {
 
     const userText = inputMessage.trim();
     setInputMessage("");
-    setMessages((prev) => [...prev, { role: "user", content: userText }]);
+
+    // Insere mensagem do usuário e reserva balão para streaming da resposta
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: userText },
+      { role: "model", content: "" }
+    ]);
     setIsSending(true);
 
     try {
-      const res = await api.sendChatMessage(userText, messages, activeApiKey || undefined);
-      setMessages((prev) => [...prev, { role: "model", content: res.response }]);
-      setLastSources(res.sources || []);
+      await api.streamChatMessage(
+        userText,
+        messages,
+        (meta) => {
+          setLastSources(meta.sources || []);
+        },
+        (token) => {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (lastIdx >= 0 && updated[lastIdx].role === "model") {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: updated[lastIdx].content + token
+              };
+            }
+            return updated;
+          });
+        },
+        () => {
+          setIsSending(false);
+        },
+        (errMsg) => {
+          setMessages((prev) => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (lastIdx >= 0 && updated[lastIdx].role === "model") {
+              const prevContent = updated[lastIdx].content;
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: prevContent ? `${prevContent}\n\n[ERRO]: ${errMsg}` : `[ERRO]: ${errMsg}`
+              };
+            }
+            return updated;
+          });
+          setIsSending(false);
+        },
+        activeApiKey || undefined
+      );
     } catch (err: any) {
       setMessages((prev) => [
         ...prev,
         { role: "model", content: `[ERRO]: ${err.message}` },
       ]);
-    } finally {
       setIsSending(false);
     }
   }
@@ -270,35 +311,42 @@ export default function Home() {
 
               {/* Messages Display */}
               <div className="flex-1 p-5 overflow-y-auto space-y-4">
-                {messages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={`flex flex-col ${
-                      msg.role === "user" ? "items-end" : "items-start"
-                    }`}
-                  >
-                    <span className="text-[10px] text-[#666] uppercase mb-1">
-                      {msg.role === "user" ? "OPERADOR" : "AGENTE MUTANTE"}
-                    </span>
+                {messages.map((msg, i) => {
+                  const isCurrentStreaming = isSending && i === messages.length - 1 && msg.role === "model";
+                  return (
                     <div
-                      className={`max-w-2xl rounded-lg px-4 py-3 text-xs leading-relaxed whitespace-pre-wrap ${
-                        msg.role === "user"
-                          ? "bg-[#1c1c1c] text-white border border-[#2a2a2a]"
-                          : "bg-[#111] text-[#e0e0e0] border border-[#1f1f1f]"
+                      key={i}
+                      className={`flex flex-col ${
+                        msg.role === "user" ? "items-end" : "items-start"
                       }`}
                     >
-                      {msg.content}
+                      <span className="text-[10px] text-[#666] uppercase mb-1">
+                        {msg.role === "user" ? "OPERADOR" : "AGENTE MUTANTE (RAG STREAM)"}
+                      </span>
+                      <div
+                        className={`max-w-2xl rounded-lg px-4 py-3 text-xs leading-relaxed whitespace-pre-wrap ${
+                          msg.role === "user"
+                            ? "bg-[#1c1c1c] text-white border border-[#2a2a2a]"
+                            : "bg-[#111] text-[#e0e0e0] border border-[#1f1f1f]"
+                        }`}
+                      >
+                        {msg.content === "" && isCurrentStreaming ? (
+                          <span className="text-[#00e5ff] animate-pulse flex items-center gap-2">
+                            <span className="inline-block w-2 h-2 rounded-full bg-[#00e5ff] animate-ping" />
+                            Recuperando fragmentos RAG & sintetizando resposta...
+                          </span>
+                        ) : (
+                          <>
+                            {msg.content}
+                            {isCurrentStreaming && (
+                              <span className="inline-block w-2 h-3.5 bg-[#00ff66] animate-pulse ml-1 align-middle" />
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
-                {isSending && (
-                  <div className="flex flex-col items-start">
-                    <span className="text-[10px] text-[#666] mb-1">AGENTE MUTANTE</span>
-                    <div className="bg-[#111] border border-[#1f1f1f] rounded-lg px-4 py-3 text-xs text-[#00e5ff] animate-pulse">
-                      Consultando base vetorial RAG & sintetizando...
-                    </div>
-                  </div>
-                )}
+                  );
+                })}
                 <div ref={chatBottomRef} />
               </div>
 

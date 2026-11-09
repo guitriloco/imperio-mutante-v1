@@ -64,6 +64,87 @@ export const api = {
     return res.json();
   },
 
+  async streamChatMessage(
+    message: string,
+    history: ChatMessage[] = [],
+    onMeta: (meta: { sources: SourceCitation[]; model_used: string }) => void,
+    onToken: (token: string) => void,
+    onDone: () => void,
+    onError: (err: string) => void,
+    apiKey?: string
+  ): Promise<void> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (apiKey) headers["X-API-Key"] = apiKey;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/chat/stream`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ message, history: history.slice(-6), top_k: 3 }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        onError(err.detail || `HTTP ${res.status}`);
+        return;
+      }
+
+      if (!res.body) {
+        onError("Stream body não disponível");
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const blocks = buffer.split("\n\n");
+        buffer = blocks.pop() || "";
+
+        for (const block of blocks) {
+          if (!block.trim()) continue;
+          let currentEvent = "";
+          let currentData = "";
+
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event:")) {
+              currentEvent = line.replace("event:", "").trim();
+            } else if (line.startsWith("data:")) {
+              currentData = line.replace("data:", "").trim();
+            }
+          }
+
+          if (currentData) {
+            try {
+              const parsed = JSON.parse(currentData);
+              if (currentEvent === "meta") {
+                onMeta(parsed);
+              } else if (currentEvent === "token") {
+                onToken(parsed.token || "");
+              } else if (currentEvent === "done") {
+                onDone();
+                return;
+              } else if (currentEvent === "error") {
+                onError(parsed.error || "Erro no streaming");
+                return;
+              }
+            } catch (e) {
+              // ignore parse errors on malformed chunks
+            }
+          }
+        }
+      }
+      onDone();
+    } catch (err: any) {
+      onError(err.message || "Erro de conexão com o stream");
+    }
+  },
+
   async getDocuments(): Promise<Record<string, KnowledgeDocument>> {
     const res = await fetch(`${API_BASE_URL}/v1/knowledge/documents`);
     if (!res.ok) throw new Error("Falha ao carregar documentos");

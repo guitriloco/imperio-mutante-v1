@@ -1,5 +1,7 @@
+import json
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from api_mutante.core.config import settings
@@ -99,3 +101,85 @@ async def conversational_chat(request: ChatRequest) -> ChatResponse:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Falha na esteira de chat conversacional: {str(e)}"
         )
+
+
+@router.post(
+    "/stream",
+    summary="Chat conversacional com streaming em tempo real (Server-Sent Events)"
+)
+async def conversational_chat_stream(request: ChatRequest):
+    """Endpoint SSE para transmissão em tempo real token a token."""
+    async def sse_event_generator():
+        try:
+            # 1. Recuperação Vetorial via RAGEngine
+            rag_hits = await rag_engine.search(query=request.message, top_k=request.top_k)
+
+            # 2. Construção do bloco de contexto e fontes
+            context_blocks = []
+            sources_data = []
+
+            for hit in rag_hits:
+                sources_data.append({
+                    "source_file": hit.get("source_file", "unknown"),
+                    "title": hit.get("title", "Sem título"),
+                    "score": hit.get("score", 0.0)
+                })
+                def to_str(items):
+                    if isinstance(items, list):
+                        return " ".join(str(x) for x in items)
+                    return str(items)
+
+                context_blocks.append(
+                    f"[DOCUMENTO: {hit.get('title')}]\n"
+                    f"Resumo: {hit.get('summary')}\n"
+                    f"Pontos-chave: {to_str(hit.get('key_takeaways', []))}\n"
+                    f"Insights acionáveis: {to_str(hit.get('actionable_insights', []))}"
+                )
+
+            context_str = "\n\n".join(context_blocks) if context_blocks else "Nenhum documento relevante encontrado."
+
+            # 3. Emite evento inicial de metadados com as fontes encontradas
+            model_used = settings.DEFAULT_MODEL
+            meta_payload = {
+                "sources": sources_data,
+                "model_used": model_used
+            }
+            yield f"event: meta\ndata: {json.dumps(meta_payload)}\n\n"
+
+            # 4. Montagem do prompt contextualizado
+            prompt_parts = []
+            if context_str:
+                prompt_parts.append(f"--- CONTEXTO RECUPERADO DA BASE DE CONHECIMENTO ---\n{context_str}\n-------------------------------------------------")
+
+            if request.history:
+                history_str = "\n".join([f"{msg.role.upper()}: {msg.content}" for msg in request.history[-6:]])
+                prompt_parts.append(f"--- HISTÓRICO DA CONVERSA ---\n{history_str}\n----------------------------")
+
+            prompt_parts.append(f"USUÁRIO: {request.message}\nRESPOSTA:")
+            final_prompt = "\n\n".join(prompt_parts)
+
+            # 5. Transmissão contínua de tokens
+            async for token in gemini_service.generate_stream_async(
+                prompt=final_prompt,
+                model=model_used,
+                system_instruction=request.system_instruction
+            ):
+                token_payload = {"token": token}
+                yield f"event: token\ndata: {json.dumps(token_payload)}\n\n"
+
+            # 6. Evento de conclusão
+            yield f"event: done\ndata: {json.dumps({'status': 'completed'})}\n\n"
+
+        except Exception as e:
+            error_payload = {"error": str(e)}
+            yield f"event: error\ndata: {json.dumps(error_payload)}\n\n"
+
+    return StreamingResponse(
+        sse_event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )

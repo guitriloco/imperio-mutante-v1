@@ -63,4 +63,32 @@ class GeminiService:
 
         raise last_error or RuntimeError("Falha em todos os modelos e retentativas.")
 
+    async def generate_stream_async(
+        self,
+        prompt: str,
+        model: str | None = None,
+        system_instruction: str | None = None,
+    ):
+        """Gera streaming de tokens assíncrono via google-genai SDK."""
+        target_model = model or settings.DEFAULT_MODEL
+        config = None
+        if system_instruction:
+            config = types.GenerateContentConfig(
+                system_instruction=system_instruction
+            )
+
+        client = self.get_client()
+        try:
+            response_stream = await client.aio.models.generate_content_stream(
+                model=target_model,
+                contents=prompt,
+                config=config
+            )
+            async for chunk in response_stream:
+                if chunk.text:
+                    yield chunk.text
+        except Exception as e:
+            logger.error(f"Erro no streaming Gemini ({target_model}): {e}")
+            raise e
+
 gemini_service = GeminiService()
