@@ -5,6 +5,15 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface ChatSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: ChatMessage[];
+  lastSources: SourceCitation[];
+}
+
 export interface SourceCitation {
   source_file: string;
   title: string;

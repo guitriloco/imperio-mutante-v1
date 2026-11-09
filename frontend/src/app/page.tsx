@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   api,
   ChatMessage,
+  ChatSession,
   SourceCitation,
   KnowledgeDocument,
   TierConfig,
@@ -32,6 +33,12 @@ import {
   ShieldAlert,
   UploadCloud,
   FileUp,
+  Plus,
+  Trash2,
+  Download,
+  MessageSquare,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 
 export default function Home() {
@@ -39,7 +46,10 @@ export default function Home() {
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [activeApiKey, setActiveApiKey] = useState<string>("");
 
-  // Chat State
+  // Chat & Multi-Session State
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "model",
@@ -84,6 +94,139 @@ export default function Home() {
   const [healResult, setHealResult] = useState<SelfHealingResponse | null>(null);
   const [isHealing, setIsHealing] = useState(false);
   const [terminalOutput, setTerminalOutput] = useState<string>("");
+
+  // Multi-Session Management
+  const DEFAULT_INITIAL_MSG: ChatMessage = {
+    role: "model",
+    content: "Império Mutante Online. Base vetorial conectada com embeddings de 3072 dimensões. Digite sua consulta estratégica.",
+  };
+
+  function createNewSession(title = "Nova Conversa"): ChatSession {
+    return {
+      id: "session_" + Date.now(),
+      title,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: [DEFAULT_INITIAL_MSG],
+      lastSources: [],
+    };
+  }
+
+  // Carrega sessões do localStorage na montagem
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("mutante_chat_sessions_v1");
+      if (stored) {
+        const parsed: ChatSession[] = JSON.parse(stored);
+        if (parsed.length > 0) {
+          setSessions(parsed);
+          const activeId = localStorage.getItem("mutante_active_session_id") || parsed[0].id;
+          const found = parsed.find((s) => s.id === activeId) || parsed[0];
+          setActiveSessionId(found.id);
+          setMessages(found.messages);
+          setLastSources(found.lastSources || []);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    const initial = createNewSession("Estratégia Inicial");
+    setSessions([initial]);
+    setActiveSessionId(initial.id);
+    setMessages(initial.messages);
+    try {
+      localStorage.setItem("mutante_chat_sessions_v1", JSON.stringify([initial]));
+      localStorage.setItem("mutante_active_session_id", initial.id);
+    } catch {}
+  }, []);
+
+  function saveSessionsToStorage(updated: ChatSession[]) {
+    setSessions(updated);
+    try {
+      localStorage.setItem("mutante_chat_sessions_v1", JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function handleNewChat() {
+    const fresh = createNewSession(`Conversa #${sessions.length + 1}`);
+    const updated = [fresh, ...sessions];
+    saveSessionsToStorage(updated);
+    setActiveSessionId(fresh.id);
+    setMessages(fresh.messages);
+    setLastSources([]);
+    try {
+      localStorage.setItem("mutante_active_session_id", fresh.id);
+    } catch {}
+  }
+
+  function handleSelectSession(sessionId: string) {
+    if (sessionId === activeSessionId) return;
+    const target = sessions.find((s) => s.id === sessionId);
+    if (!target) return;
+    setActiveSessionId(target.id);
+    setMessages(target.messages);
+    setLastSources(target.lastSources || []);
+    try {
+      localStorage.setItem("mutante_active_session_id", target.id);
+    } catch {}
+  }
+
+  function handleDeleteSession(sessionId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    const filtered = sessions.filter((s) => s.id !== sessionId);
+    if (filtered.length === 0) {
+      const fresh = createNewSession("Nova Conversa");
+      saveSessionsToStorage([fresh]);
+      setActiveSessionId(fresh.id);
+      setMessages(fresh.messages);
+      setLastSources([]);
+      try {
+        localStorage.setItem("mutante_active_session_id", fresh.id);
+      } catch {}
+    } else {
+      saveSessionsToStorage(filtered);
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(filtered[0].id);
+        setMessages(filtered[0].messages);
+        setLastSources(filtered[0].lastSources || []);
+        try {
+          localStorage.setItem("mutante_active_session_id", filtered[0].id);
+        } catch {}
+      }
+    }
+  }
+
+  function handleExportMarkdown() {
+    const currentSession = sessions.find((s) => s.id === activeSessionId);
+    const title = currentSession ? currentSession.title : "Conversa Imperio Mutante";
+    const dateStr = new Date().toLocaleString("pt-BR");
+
+    let md = `# ${title}\n\n`;
+    md += `*Exportado em: ${dateStr}*\n\n---\n\n`;
+
+    messages.forEach((m) => {
+      const role = m.role === "user" ? "### 👤 Operador" : "### ⚡ Agente Mutante (RAG)";
+      md += `${role}\n\n${m.content}\n\n`;
+    });
+
+    if (lastSources && lastSources.length > 0) {
+      md += `\n---\n### 📚 Fontes Citadas (RAG)\n\n`;
+      lastSources.forEach((s) => {
+        md += `- **${s.title}** (\`${s.source_file}\`) - Similaridade: ${(s.score * 100).toFixed(1)}%\n`;
+      });
+    }
+
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${title.toLowerCase().replace(/[^a-z0-9]/gi, "_")}_transcricao.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   // Check API Health & Swarm Status
   useEffect(() => {
@@ -167,6 +310,11 @@ export default function Home() {
         messages,
         (meta) => {
           setLastSources(meta.sources || []);
+          // Atualiza fontes na sessão ativa
+          setSessions((prev) => {
+            const updated = prev.map((s) => s.id === activeSessionId ? { ...s, lastSources: meta.sources || [] } : s);
+            return updated;
+          });
         },
         (token) => {
           setMessages((prev) => {
@@ -183,6 +331,31 @@ export default function Home() {
         },
         () => {
           setIsSending(false);
+          // Persiste histórico na sessão ativa
+          setMessages((finalMsgs) => {
+            setSessions((prevSess) => {
+              const updated = prevSess.map((s) => {
+                if (s.id === activeSessionId) {
+                  const autoTitle =
+                    s.title.startsWith("Conversa #") || s.title === "Nova Conversa" || s.title === "Estratégia Inicial"
+                      ? userText.slice(0, 36)
+                      : s.title;
+                  return {
+                    ...s,
+                    title: autoTitle,
+                    messages: finalMsgs,
+                    updatedAt: Date.now(),
+                  };
+                }
+                return s;
+              });
+              try {
+                localStorage.setItem("mutante_chat_sessions_v1", JSON.stringify(updated));
+              } catch {}
+              return updated;
+            });
+            return finalMsgs;
+          });
         },
         (errMsg) => {
           setMessages((prev) => {
@@ -429,14 +602,100 @@ export default function Home() {
       <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
         {/* TAB 1: RAG CHAT STUDIO */}
         {activeTab === "chat" && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[720px]">
-            {/* Left: Chat Window (3 Cols) */}
-            <div className="lg:col-span-3 bg-[#0d0d0d] border border-[#1f1f1f] rounded-lg flex flex-col overflow-hidden">
+          <div className="flex flex-col lg:flex-row gap-4 h-[740px]">
+            {/* 1. Left Sessions Sidebar */}
+            {sidebarOpen && (
+              <div className="w-full lg:w-64 bg-[#0d0d0d] border border-[#1f1f1f] rounded-lg flex flex-col overflow-hidden shrink-0">
+                <div className="p-3 border-b border-[#1f1f1f] space-y-2 bg-[#121212]">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-white flex items-center gap-1.5 uppercase">
+                      <MessageSquare className="w-3.5 h-3.5 text-[#00ff66]" /> SESSÕES ({sessions.length})
+                    </span>
+                    <button
+                      onClick={() => setSidebarOpen(false)}
+                      title="Recolher barra lateral"
+                      className="text-[#666] hover:text-white"
+                    >
+                      <PanelLeftClose className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleNewChat}
+                    className="w-full bg-[#181818] hover:bg-[#222] border border-[#2a2a2a] hover:border-[#00ff66]/40 text-white font-bold py-2 rounded text-xs flex items-center justify-center gap-1.5 transition"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-[#00ff66]" /> Nova Conversa
+                  </button>
+                </div>
+
+                {/* Sessions List */}
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                  {sessions.map((sess) => (
+                    <div
+                      key={sess.id}
+                      onClick={() => handleSelectSession(sess.id)}
+                      className={`group p-2.5 rounded text-xs cursor-pointer flex items-center justify-between transition ${
+                        sess.id === activeSessionId
+                          ? "bg-[#181818] border border-[#2e2e2e] text-[#00ff66]"
+                          : "text-[#888] hover:bg-[#121212] hover:text-[#ccc]"
+                      }`}
+                    >
+                      <div className="truncate flex-1 pr-2">
+                        <div className="font-bold truncate text-[11px]">{sess.title}</div>
+                        <div className="text-[9px] text-[#555] font-mono mt-0.5">
+                          {new Date(sess.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {sess.messages.length} msgs
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => handleDeleteSession(sess.id, e)}
+                        title="Excluir conversa"
+                        className="opacity-0 group-hover:opacity-100 text-[#555] hover:text-red-400 p-1 transition"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Sidebar Footer: Export */}
+                <div className="p-2.5 border-t border-[#1f1f1f] bg-[#090909]">
+                  <button
+                    onClick={handleExportMarkdown}
+                    className="w-full bg-[#121212] hover:bg-[#1a1a1a] border border-[#262626] text-[#aaa] hover:text-white py-1.5 rounded text-[11px] flex items-center justify-center gap-1.5 transition"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#00e5ff]" /> Exportar Chat (.md)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 2. Center: Chat Window */}
+            <div className="flex-1 bg-[#0d0d0d] border border-[#1f1f1f] rounded-lg flex flex-col overflow-hidden">
               <div className="px-5 py-3 border-b border-[#1f1f1f] bg-[#121212] flex justify-between items-center text-xs">
-                <span className="text-[#888] font-bold flex items-center gap-2">
-                  <Zap className="w-3.5 h-3.5 text-[#00ff66]" /> CANAL CONVERSACIONAL DIRETO
-                </span>
-                <span className="text-[#555]">MODELO: gemini-2.5-flash</span>
+                <div className="flex items-center gap-3">
+                  {!sidebarOpen && (
+                    <button
+                      onClick={() => setSidebarOpen(true)}
+                      title="Expandir sessões"
+                      className="text-[#666] hover:text-white"
+                    >
+                      <PanelLeft className="w-4 h-4 text-[#00ff66]" />
+                    </button>
+                  )}
+                  <span className="text-white font-bold flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 text-[#00ff66]" />
+                    {sessions.find((s) => s.id === activeSessionId)?.title || "CANAL CONVERSACIONAL DIRETO"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleExportMarkdown}
+                    title="Exportar Markdown"
+                    className="text-[#666] hover:text-[#00e5ff] text-[11px] flex items-center gap-1"
+                  >
+                    <Download className="w-3 h-3" /> Exportar .md
+                  </button>
+                  <span className="text-[#555] hidden sm:inline">MODELO: gemini-2.5-flash</span>
+                </div>
               </div>
 
               {/* Messages Display */}
@@ -499,8 +758,8 @@ export default function Home() {
               </form>
             </div>
 
-            {/* Right: Sources & Telemetry (1 Col) */}
-            <div className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-lg p-4 flex flex-col justify-between">
+            {/* 3. Right: Sources & Telemetry */}
+            <div className="w-full lg:w-72 bg-[#0d0d0d] border border-[#1f1f1f] rounded-lg p-4 flex flex-col justify-between shrink-0">
               <div>
                 <h3 className="text-xs font-bold text-white uppercase border-b border-[#1f1f1f] pb-2 mb-3 flex items-center gap-1.5">
                   <Shield className="w-3.5 h-3.5 text-[#00e5ff]" /> Fontes Citadas (RAG)
