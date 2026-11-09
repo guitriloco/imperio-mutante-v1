@@ -13,6 +13,7 @@ import {
   PlanStep,
   AuditResponse,
   SelfHealingResponse,
+  BillingOrder,
 } from "@/lib/api";
 import {
   Terminal,
@@ -39,6 +40,10 @@ import {
   MessageSquare,
   PanelLeftClose,
   PanelLeft,
+  CreditCard,
+  QrCode,
+  ShoppingBag,
+  X,
 } from "lucide-react";
 
 export default function Home() {
@@ -78,6 +83,17 @@ export default function Home() {
   const [selectedTier, setSelectedTier] = useState("PRO");
   const [generatedKey, setGeneratedKey] = useState<GeneratedKeyResponse | null>(null);
   const [isGeneratingKey, setIsGeneratingKey] = useState(false);
+
+  // Checkout & Billing State
+  const [orders, setOrders] = useState<BillingOrder[]>([]);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutTier, setCheckoutTier] = useState<"PRO" | "ENTERPRISE">("PRO");
+  const [checkoutAmount, setCheckoutAmount] = useState<number>(97);
+  const [checkoutCustomerName, setCheckoutCustomerName] = useState("");
+  const [checkoutCustomerEmail, setCheckoutCustomerEmail] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentCompletedKey, setPaymentCompletedKey] = useState<string | null>(null);
 
   // Swarm State
   const [swarmStatus, setSwarmStatus] = useState<SwarmStatus | null>(null);
@@ -251,6 +267,7 @@ export default function Home() {
       loadDocuments();
     } else if (activeTab === "monetization") {
       loadTiers();
+      loadBillingOrders();
     } else if (activeTab === "swarm") {
       loadSwarmStatus();
     }
@@ -278,6 +295,49 @@ export default function Home() {
       setTiers(data);
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  async function loadBillingOrders() {
+    try {
+      const data = await api.getBillingOrders();
+      setOrders(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function handleOpenCheckout(tier: "PRO" | "ENTERPRISE", amount: number) {
+    setCheckoutTier(tier);
+    setCheckoutAmount(amount);
+    setPaymentCompletedKey(null);
+    setIsCheckoutOpen(true);
+  }
+
+  async function handleConfirmPayment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!checkoutCustomerEmail.trim()) {
+      alert("Informe seu e-mail para receber a licença.");
+      return;
+    }
+    setIsProcessingPayment(true);
+    try {
+      const paymentRef = `pay_${paymentMethod}_${Date.now()}`;
+      const res = await api.provisionLicense({
+        customer_email: checkoutCustomerEmail.trim(),
+        customer_name: checkoutCustomerName.trim() || checkoutCustomerEmail.split("@")[0],
+        tier: checkoutTier,
+        payment_reference: paymentRef,
+        amount_paid: checkoutAmount,
+      });
+
+      setPaymentCompletedKey(res.api_key);
+      setActiveApiKey(res.api_key);
+      await loadBillingOrders();
+    } catch (err: any) {
+      alert(`Falha no checkout: ${err.message}`);
+    } finally {
+      setIsProcessingPayment(false);
     }
   }
 
@@ -972,6 +1032,24 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
+
+                  {tierName === "PRO" && (
+                    <button
+                      onClick={() => handleOpenCheckout("PRO", 97)}
+                      className="w-full mt-3 bg-[#00e5ff] hover:bg-[#00ccee] text-black font-bold py-2 rounded text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" /> Adquirir Licença PRO (R$ 97/mês)
+                    </button>
+                  )}
+
+                  {tierName === "ENTERPRISE" && (
+                    <button
+                      onClick={() => handleOpenCheckout("ENTERPRISE", 497)}
+                      className="w-full mt-3 bg-amber-400 hover:bg-amber-500 text-black font-bold py-2 rounded text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" /> Adquirir Licença ENTERPRISE (R$ 497/mês)
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -979,7 +1057,7 @@ export default function Home() {
             {/* Instant Key Issuance Gateway */}
             <div className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-lg p-6 space-y-4">
               <h3 className="text-xs font-bold text-white uppercase border-b border-[#1f1f1f] pb-2">
-                Emissão Instantânea de Chave de API Licenciada
+                Emissão Instantânea de Chave de API Licenciada (Admin Mode)
               </h3>
               <form onSubmit={handleGenerateKey} className="flex flex-col sm:flex-row gap-3">
                 <input
@@ -1023,6 +1101,206 @@ export default function Home() {
                 </div>
               )}
             </div>
+
+            {/* Financial Audit / Recent Orders Table */}
+            <div className="bg-[#0d0d0d] border border-[#1f1f1f] rounded-lg p-6 space-y-4">
+              <div className="flex items-center justify-between border-b border-[#1f1f1f] pb-2">
+                <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-[#00ff66]" /> Auditoria de Vendas & Licenças Emitidas ({orders.length})
+                </h3>
+                <button
+                  onClick={loadBillingOrders}
+                  className="text-[11px] text-[#888] hover:text-white flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" /> Atualizar
+                </button>
+              </div>
+
+              {orders.length === 0 ? (
+                <div className="text-xs text-[#555] py-4 text-center">
+                  Nenhuma transação registrada ainda no acervo financeiro.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-[#222] text-[#666]">
+                        <th className="pb-2 font-mono">ORDER ID</th>
+                        <th className="pb-2">CLIENTE</th>
+                        <th className="pb-2">PLANO</th>
+                        <th className="pb-2">VALOR</th>
+                        <th className="pb-2">STATUS</th>
+                        <th className="pb-2">DATA</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#181818]">
+                      {orders.slice(0, 8).map((ord, idx) => (
+                        <tr key={idx} className="hover:bg-[#121212]">
+                          <td className="py-2.5 font-mono text-[10px] text-[#00e5ff]">{ord.order_id}</td>
+                          <td className="py-2.5 text-white font-medium">{ord.customer_name || ord.customer_email}</td>
+                          <td className="py-2.5">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#171717] text-white border border-[#2a2a2a] font-bold">
+                              {ord.tier}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-[#00ff66] font-bold">
+                            {ord.amount_paid ? `R$ ${ord.amount_paid.toFixed(2)}` : "R$ 0,00"}
+                          </td>
+                          <td className="py-2.5">
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-[#00ff66] border border-emerald-800 font-bold">
+                              {ord.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-[#666] font-mono text-[10px]">
+                            {new Date(ord.timestamp).toLocaleDateString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Modal de Checkout Flutuante */}
+            {isCheckoutOpen && (
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-[#0d0d0d] border border-[#262626] rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
+                  <button
+                    onClick={() => setIsCheckoutOpen(false)}
+                    className="absolute top-4 right-4 text-[#666] hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+
+                  <div className="border-b border-[#1f1f1f] pb-3">
+                    <span className="text-[10px] text-[#00ff66] font-bold uppercase tracking-wider">CHECKOUT SEGURO</span>
+                    <h3 className="text-base font-bold text-white uppercase mt-0.5">
+                      Licença Império Mutante {checkoutTier}
+                    </h3>
+                    <div className="text-lg text-[#00ff66] font-bold mt-1 font-mono">
+                      R$ {checkoutAmount},00 <span className="text-xs text-[#777] font-normal">/ mês</span>
+                    </div>
+                  </div>
+
+                  {!paymentCompletedKey ? (
+                    <form onSubmit={handleConfirmPayment} className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-[11px] text-[#888] uppercase font-bold block">Seus Dados de Acesso:</label>
+                        <input
+                          type="text"
+                          placeholder="Seu Nome Completo"
+                          value={checkoutCustomerName}
+                          onChange={(e) => setCheckoutCustomerName(e.target.value)}
+                          className="w-full bg-[#141414] border border-[#222] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00e5ff]"
+                        />
+                        <input
+                          type="email"
+                          placeholder="seu.email@empresa.com"
+                          value={checkoutCustomerEmail}
+                          onChange={(e) => setCheckoutCustomerEmail(e.target.value)}
+                          required
+                          className="w-full bg-[#141414] border border-[#222] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00e5ff]"
+                        />
+                      </div>
+
+                      {/* Escolha de Método de Pagamento */}
+                      <div className="space-y-1.5">
+                        <label className="text-[11px] text-[#888] uppercase font-bold block">Forma de Pagamento:</label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod("pix")}
+                            className={`p-2.5 rounded border text-xs font-bold flex items-center justify-center gap-2 transition ${
+                              paymentMethod === "pix"
+                                ? "bg-[#00ff66]/10 border-[#00ff66] text-[#00ff66]"
+                                : "bg-[#141414] border-[#222] text-[#777]"
+                            }`}
+                          >
+                            <QrCode className="w-4 h-4" /> PIX Instantâneo
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentMethod("card")}
+                            className={`p-2.5 rounded border text-xs font-bold flex items-center justify-center gap-2 transition ${
+                              paymentMethod === "card"
+                                ? "bg-[#00e5ff]/10 border-[#00e5ff] text-[#00e5ff]"
+                                : "bg-[#141414] border-[#222] text-[#777]"
+                            }`}
+                          >
+                            <CreditCard className="w-4 h-4" /> Cartão de Crédito
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-[#121212] rounded border border-[#222] text-[11px] text-[#888] space-y-1">
+                        <div className="flex justify-between text-white">
+                          <span>Aprovisionamento:</span>
+                          <span className="text-[#00ff66] font-bold">Imediato (Zero Delay)</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Gateway Webhook:</span>
+                          <span className="font-mono text-[10px]">Stripe / Mercado Pago</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isProcessingPayment}
+                        className="w-full bg-[#00ff66] hover:bg-[#00dd55] text-black font-bold py-3 rounded text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition disabled:opacity-50"
+                      >
+                        {isProcessingPayment ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            Processando Transação...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-4 h-4" />
+                            Confirmar Pagamento & Liberar Chave
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  ) : (
+                    <div className="space-y-4 py-2">
+                      <div className="bg-emerald-950/40 border border-emerald-600/40 rounded-lg p-4 text-center space-y-2">
+                        <CheckCircle className="w-8 h-8 text-[#00ff66] mx-auto animate-bounce" />
+                        <h4 className="text-sm font-bold text-white uppercase">Pagamento Aprovado com Sucesso!</h4>
+                        <p className="text-xs text-[#aaa]">
+                          Sua licença <span className="text-[#00ff66] font-bold">{checkoutTier}</span> foi provisionada e injetada no seu cockpit.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-[#777] uppercase font-bold">Sua Chave de API:</span>
+                        <div className="bg-[#050505] p-3 rounded text-xs text-[#00ff66] font-mono break-all border border-[#222]">
+                          {paymentCompletedKey}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (paymentCompletedKey) navigator.clipboard.writeText(paymentCompletedKey);
+                            alert("Chave copiada para a área de transferência!");
+                          }}
+                          className="flex-1 bg-[#1a1a1a] hover:bg-[#252525] text-white font-bold py-2 rounded text-xs uppercase border border-[#333] transition"
+                        >
+                          Copiar Chave
+                        </button>
+                        <button
+                          onClick={() => setIsCheckoutOpen(false)}
+                          className="flex-1 bg-[#00ff66] hover:bg-[#00dd55] text-black font-bold py-2 rounded text-xs uppercase transition"
+                        >
+                          Concluir
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

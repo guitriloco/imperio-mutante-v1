@@ -76,5 +76,22 @@
       "Desenvolvimento de Protocolos"
     ],
     "json_path": "C:\\Users\\Administrator\\ImperioMutante\\01_CODIGOS\\imperio_mutante_v1\\api_mutante\\data\\web_example_domain_20261105044251.json"
+  },
+  "diretriz_mutante_upload_teste.md": {
+    "title": "Diretriz Suprema de Upload Mutante",
+    "summary": "Este documento estabelece o protocolo mandatório para a integração de dados críticos ao acervo soberano. Ele define que todo upload deve ser realizado via multipart direto e instrui que o motor de RAG e embeddings é responsável pela ingestão, estruturação de metadados e indexação completa, assegurando a soberania e a acessibilidade da inteligência do Império.",
+    "tags": [
+      "Upload",
+      "Multipart",
+      "Acervo Soberano",
+      "RAG",
+      "Embeddings",
+      "Indexação",
+      "Metadados",
+      "Gestão de Conhecimento",
+      "Diretriz",
+      "Inteligência Tática"
+    ],
+    "json_path": "C:\\Users\\Administrator\\ImperioMutante\\01_CODIGOS\\imperio_mutante_v1\\api_mutante\\data\\diretriz_mutante_upload_teste.json"
   }
 }

@@ -19,5 +19,19 @@
     "created_at": "2026-11-05T05:03:36.928639",
     "total_requests": 0,
     "is_active": true
+  },
+  "a8ef141f6c00fb2a7a2bba02f1ce17fe53fcd4bbef6fef87d6494c2d76615e59": {
+    "owner": "Operador Mutante Alfa (alfa@mutante.local)",
+    "tier": "PRO",
+    "created_at": "2026-11-09T17:28:48.538380",
+    "total_requests": 1,
+    "is_active": true
+  },
+  "0e041cd67ca6f0d9f9bea94798cbb59109ae26f935eb7ee55ad2354752d5a6cc": {
+    "owner": "Comando Central Mutante (comando@mutante.local)",
+    "tier": "ENTERPRISE",
+    "created_at": "2026-11-09T17:28:48.551927",
+    "total_requests": 1,
+    "is_active": true
   }
 }

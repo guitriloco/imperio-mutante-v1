@@ -183,3 +183,20 @@ async def direct_provisioning(payload: ManualProvisionRequest) -> ProvisionRespo
         rate_limit_rpm=tier_cfg["rpm"],
         message=f"Licença {tier_upper} gerada com sucesso. Entregue a chave ao comprador."
     )
+
+
+@router.get(
+    "/orders",
+    summary="Lista todas as ordens financeiras e licenças emitidas para auditoria"
+)
+async def list_orders() -> list:
+    if not ORDERS_DB_FILE.exists():
+        return []
+    try:
+        with open(ORDERS_DB_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data[::-1]  # Retorna as mais recentes primeiro
+            return []
+    except Exception:
+        return []

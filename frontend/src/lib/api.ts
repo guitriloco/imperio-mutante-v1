@@ -99,6 +99,26 @@ export interface SelfHealingResponse {
   final_stderr: string;
 }
 
+export interface BillingOrder {
+  order_id: string;
+  customer_email: string;
+  customer_name: string;
+  tier: string;
+  amount_paid?: number;
+  payment_ref?: string;
+  api_key_issued: string;
+  timestamp: string;
+  status: string;
+}
+
+export interface ProvisionLicenseRequest {
+  customer_email: string;
+  customer_name: string;
+  tier: string;
+  payment_reference: string;
+  amount_paid: number;
+}
+
 export const api = {
   async getHealth(): Promise<{ status: string }> {
     const res = await fetch(`${API_BASE_URL}/health`);
@@ -320,6 +340,25 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
       throw new Error(err.detail || "Falha no loop de auto-cura");
+    }
+    return res.json();
+  },
+
+  async getBillingOrders(): Promise<BillingOrder[]> {
+    const res = await fetch(`${API_BASE_URL}/v1/billing/orders`);
+    if (!res.ok) throw new Error("Falha ao carregar ordens financeiras");
+    return res.json();
+  },
+
+  async provisionLicense(req: ProvisionLicenseRequest): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/v1/billing/provision-direct`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Falha ao aprovisionar licença");
     }
     return res.json();
   }

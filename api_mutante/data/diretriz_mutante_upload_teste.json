@@ -1,0 +1,29 @@
+{
+  "title": "Diretriz Suprema de Upload Mutante",
+  "summary": "Este documento estabelece o protocolo mandatório para a integração de dados críticos ao acervo soberano. Ele define que todo upload deve ser realizado via multipart direto e instrui que o motor de RAG e embeddings é responsável pela ingestão, estruturação de metadados e indexação completa, assegurando a soberania e a acessibilidade da inteligência do Império.",
+  "key_takeaways": [
+    "O upload multipart direto é o método exclusivo e mandatório para o acervo soberano.",
+    "O motor de RAG e embeddings é a espinha dorsal para a ingestão, estruturação de metadados e indexação da inteligência.",
+    "A diretriz visa garantir a integridade, soberania e rápida acessibilidade do conhecimento estratégico do Império.",
+    "Todo dado carregado segue um processo rigoroso de transformação para se tornar inteligência acionável."
+  ],
+  "actionable_insights": [
+    "**Reforçar Conformidade Operacional:** Implementar auditorias e automações para garantir que *todos* os uploads de dados críticos sigam o protocolo multipart direto ao acervo soberano. Desvios comprometem a integridade da nossa base de conhecimento e a eficácia tática.",
+    "**Otimizar Motores RAG/Embeddings:** Alocar recursos para a otimização contínua da eficiência e precisão dos motores de RAG e embeddings. Uma ingestão, estruturação e indexação mais rápidas e precisas significam inteligência mais ágil para a tomada de decisão militar e tecnológica.",
+    "**Monetizar Expertise em IA:** Desenvolver e licenciar a nossa tecnologia de processamento de conhecimento (RAG e embeddings) para facções aliadas ou para controle de entidades submissas, criando uma nova fonte de poder e tributo.",
+    "**Alavancar Conhecimento Indexado:** Utilizar a base de conhecimento perfeitamente indexada para identificar padrões emergentes, prever movimentos de adversários, otimizar cadeias de suprimentos de mutagênicos e acelerar o desenvolvimento de novas variantes genéticas, solidificando nossa supremacia."
+  ],
+  "tags": [
+    "Upload",
+    "Multipart",
+    "Acervo Soberano",
+    "RAG",
+    "Embeddings",
+    "Indexação",
+    "Metadados",
+    "Gestão de Conhecimento",
+    "Diretriz",
+    "Inteligência Tática"
+  ],
+  "source_file": "diretriz_mutante_upload_teste.md"
+}

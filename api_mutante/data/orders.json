@@ -19,5 +19,27 @@
     "api_key_issued": "mutante_enterprise_OYM67yrgXQrKMmC888NOaRbpyn4VI7QUjvyRRuAGH9c",
     "timestamp": "2026-11-05T05:03:36.929354",
     "status": "ACTIVE"
+  },
+  {
+    "order_id": "ord_1794256128_pix_tx_998822",
+    "customer_email": "alfa@mutante.local",
+    "customer_name": "Operador Mutante Alfa",
+    "tier": "PRO",
+    "amount_paid": 97.0,
+    "payment_ref": "pix_tx_998822",
+    "api_key_issued": "mutante_pro_zzsRFPx7aRuYsMCJu516lnsjiDCk70BuqlbPSUe118k",
+    "timestamp": "2026-11-09T17:28:48.539583",
+    "status": "ACTIVE"
+  },
+  {
+    "order_id": "ord_1794256128_card_ch_773311",
+    "customer_email": "comando@mutante.local",
+    "customer_name": "Comando Central Mutante",
+    "tier": "ENTERPRISE",
+    "amount_paid": 497.0,
+    "payment_ref": "card_ch_773311",
+    "api_key_issued": "mutante_enterprise_BvI9v3px5pQa4pBQvLWIkgyeDY-91biNOcRoRvLqaCA",
+    "timestamp": "2026-11-09T17:28:48.553173",
+    "status": "ACTIVE"
   }
 ]
