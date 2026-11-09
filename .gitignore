@@ -36,3 +36,13 @@ Desktop.ini
 *.log
 temp/
 tmp/
+
+# Frontend (Node / Next.js)
+node_modules/
+.next/
+out/
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
