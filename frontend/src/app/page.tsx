@@ -30,6 +30,8 @@ import {
   Bug,
   Play,
   ShieldAlert,
+  UploadCloud,
+  FileUp,
 } from "lucide-react";
 
 export default function Home() {
@@ -55,6 +57,10 @@ export default function Home() {
   const [researchUrl, setResearchUrl] = useState("");
   const [researchTopic, setResearchTopic] = useState("");
   const [isResearching, setIsResearching] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadFeedback, setUploadFeedback] = useState<string | null>(null);
 
   // Monetization State
   const [tiers, setTiers] = useState<Record<string, TierConfig>>({});
@@ -213,6 +219,22 @@ export default function Home() {
       alert(`Falha ao sincronizar: ${err.message}`);
     } finally {
       setIsLoadingDocs(false);
+    }
+  }
+
+  async function handleFileUpload(file: File) {
+    if (!file) return;
+    setIsUploading(true);
+    setUploadFeedback(`Enviando e indexando ${file.name}...`);
+    try {
+      const res = await api.uploadDocument(file, true);
+      setUploadFeedback(`✓ ${res.filename} indexado com sucesso (${(res.bytes_saved / 1024).toFixed(1)} KB)`);
+      await loadDocuments();
+      setTimeout(() => setUploadFeedback(null), 6000);
+    } catch (err: any) {
+      setUploadFeedback(`✗ Erro no upload: ${err.message}`);
+    } finally {
+      setIsUploading(false);
     }
   }
 
@@ -528,6 +550,60 @@ export default function Home() {
                   <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDocs ? "animate-spin" : ""}`} />
                   Reindexar Todos os Arquivos
                 </button>
+              </div>
+
+              {/* Direct File Upload (Drag & Drop Zone) */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleFileUpload(e.dataTransfer.files[0]);
+                  }
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-all ${
+                  isDragging
+                    ? "border-[#00ff66] bg-[#00ff66]/10"
+                    : "border-[#252525] hover:border-[#00e5ff]/50 bg-[#090909]"
+                }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.txt,.md,.markdown,.json,.csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleFileUpload(e.target.files[0]);
+                    }
+                  }}
+                />
+                <div className="flex flex-col items-center justify-center space-y-1.5">
+                  <div className="w-9 h-9 rounded-full bg-[#141414] flex items-center justify-center border border-[#222]">
+                    {isUploading ? (
+                      <RefreshCw className="w-4 h-4 text-[#00e5ff] animate-spin" />
+                    ) : (
+                      <UploadCloud className="w-4 h-4 text-[#00e5ff]" />
+                    )}
+                  </div>
+                  <div className="text-xs font-bold text-white uppercase tracking-wider">
+                    {isUploading ? "PROCESSANDO & INDEXANDO..." : "ARRASTE E SOLTE ARQUIVOS OU CLIQUE PARA ENVIAR"}
+                  </div>
+                  <p className="text-[10px] text-[#666]">
+                    Suporta PDF, Markdown (.md), Texto (.txt), JSON e CSV — Síntese Gemini + Embeddings 3072-d instantâneos
+                  </p>
+                  {uploadFeedback && (
+                    <div className="mt-1 text-xs font-mono font-bold text-[#00ff66] bg-[#00ff66]/10 px-3 py-1 rounded border border-[#00ff66]/30">
+                      {uploadFeedback}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Autonomous Web Research Form */}

@@ -25,6 +25,16 @@ export interface KnowledgeDocument {
   json_path: string;
 }
 
+export interface UploadKnowledgeResponse {
+  success: boolean;
+  filename: string;
+  bytes_saved: number;
+  title?: string;
+  summary?: string;
+  tags: string[];
+  rag_indexed: boolean;
+}
+
 export interface TierConfig {
   rpm: number;
   daily_tokens: number;
@@ -198,6 +208,20 @@ export const api = {
       body: JSON.stringify({}),
     });
     if (!res.ok) throw new Error("Falha na ingestão");
+    return res.json();
+  },
+
+  async uploadDocument(file: File, autoIndex: boolean = true): Promise<UploadKnowledgeResponse> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await fetch(`${API_BASE_URL}/v1/knowledge/upload?auto_index=${autoIndex}`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Falha no upload do documento");
+    }
     return res.json();
   },
 

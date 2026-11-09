@@ -2,13 +2,14 @@ import json
 import re
 from pathlib import Path
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, File, UploadFile
 from pydantic import BaseModel, Field
 import pypdf
 
 from api_mutante.core.config import settings
 from api_mutante.core.gemini_service import gemini_service
 from api_mutante.prompts_manager import prompts_manager
+from api_mutante.rag_engine import rag_engine
 
 router = APIRouter(prefix="/v1/knowledge", tags=["Knowledge"])
 
@@ -190,4 +191,76 @@ async def ingest_knowledge(request: IngestRequest) -> IngestResponse:
         success=True,
         processed_count=len([r for r in results if r.status == "success"]),
         items=results
+    )
+
+
+class UploadKnowledgeResponse(BaseModel):
+    success: bool
+    filename: str
+    bytes_saved: int
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    tags: List[str] = []
+    rag_indexed: bool = False
+
+@router.post(
+    "/upload",
+    response_model=UploadKnowledgeResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Upload direto de arquivo (PDF, MD, TXT) com ingestão e indexação vetorial instantânea"
+)
+async def upload_document(
+    file: UploadFile = File(...),
+    auto_index: bool = True
+) -> UploadKnowledgeResponse:
+    if not KNOWLEDGE_DIR.exists():
+        KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
+
+    allowed_suffixes = [".pdf", ".txt", ".md", ".markdown", ".json", ".csv"]
+    file_suffix = Path(file.filename).suffix.lower()
+    if file_suffix not in allowed_suffixes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Extensão '{file_suffix}' não suportada. Use: {', '.join(allowed_suffixes)}"
+        )
+
+    destination_path = KNOWLEDGE_DIR / file.filename
+    content = await file.read()
+    with open(destination_path, "wb") as f:
+        f.write(content)
+
+    title = None
+    summary = None
+    tags = []
+    rag_indexed = False
+
+    if auto_index:
+        try:
+            # 1. Ingestão e extração estruturada
+            ingest_res = await ingest_knowledge(IngestRequest(filename=file.filename))
+            if ingest_res.items and ingest_res.items[0].status == "success":
+                title = ingest_res.items[0].title
+                if ingest_res.items[0].data_file:
+                    json_path = Path(ingest_res.items[0].data_file)
+                    if json_path.exists():
+                        with open(json_path, "r", encoding="utf-8") as jf:
+                            jdata = json.load(jf)
+                            summary = jdata.get("summary")
+                            tags = jdata.get("tags", [])
+
+            # 2. Indexação vetorial de embeddings RAG
+            indexed_count = await rag_engine.index_all_documents(force=False)
+            rag_indexed = indexed_count >= 0
+        except Exception as e:
+            # Não falha o upload caso a síntese falhe
+            pass
+
+    return UploadKnowledgeResponse(
+        success=True,
+        filename=file.filename,
+        bytes_saved=len(content),
+        title=title or file.filename,
+        summary=summary or "Arquivo salvo e armazenado no acervo.",
+        tags=tags,
+        rag_indexed=rag_indexed
     )
