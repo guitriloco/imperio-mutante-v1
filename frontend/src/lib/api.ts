@@ -1,8 +1,27 @@
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+export interface WebSource {
+  title: string;
+  url: string;
+}
+
+export interface TelemetryData {
+  prompt_tokens?: number;
+  candidates_tokens?: number;
+  thoughts_tokens?: number;
+  total_tokens?: number;
+  estimated_cost_usd?: number;
+  latency_ms?: number;
+  model_used?: string;
+  web_sources?: WebSource[];
+}
+
 export interface ChatMessage {
   role: "user" | "model";
   content: string;
+  thought?: string;
+  telemetry?: TelemetryData;
+  web_sources?: WebSource[];
 }
 
 export interface ChatSession {
@@ -182,16 +201,32 @@ export const api = {
     onToken: (token: string) => void,
     onDone: () => void,
     onError: (err: string) => void,
-    apiKey?: string
+    options?: {
+      apiKey?: string;
+      enableSearch?: boolean;
+      enableThinking?: boolean;
+      thinkingBudget?: number;
+      model?: string;
+      onThought?: (thought: string) => void;
+      onTelemetry?: (telemetry: TelemetryData) => void;
+    }
   ): Promise<void> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (apiKey) headers["X-API-Key"] = apiKey;
+    if (options?.apiKey) headers["X-API-Key"] = options.apiKey;
 
     try {
       const res = await fetch(`${API_BASE_URL}/v1/chat/stream`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ message, history: history.slice(-6), top_k: 3 }),
+        body: JSON.stringify({
+          message,
+          history: history.slice(-6).map((h) => ({ role: h.role, content: h.content })),
+          top_k: 3,
+          enable_search: options?.enableSearch || false,
+          enable_thinking: options?.enableThinking || false,
+          thinking_budget: options?.thinkingBudget || 1024,
+          model: options?.model || null,
+        }),
       });
 
       if (!res.ok) {
@@ -235,8 +270,12 @@ export const api = {
               const parsed = JSON.parse(currentData);
               if (currentEvent === "meta") {
                 onMeta(parsed);
+              } else if (currentEvent === "thought") {
+                if (options?.onThought) options.onThought(parsed.thought || "");
               } else if (currentEvent === "token") {
                 onToken(parsed.token || "");
+              } else if (currentEvent === "telemetry") {
+                if (options?.onTelemetry) options.onTelemetry(parsed);
               } else if (currentEvent === "done") {
                 onDone();
                 return;

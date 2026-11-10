@@ -45,6 +45,7 @@ import {
   QrCode,
   ShoppingBag,
   Copy,
+  Globe,
   X,
 } from "lucide-react";
 
@@ -66,6 +67,9 @@ export default function Home() {
   const [inputMessage, setInputMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [lastSources, setLastSources] = useState<SourceCitation[]>([]);
+  const [enableSearch, setEnableSearch] = useState(false);
+  const [enableThinking, setEnableThinking] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("gemini-2.5-flash");
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // Knowledge State
@@ -472,7 +476,40 @@ export default function Home() {
           });
           setIsSending(false);
         },
-        activeApiKey || undefined
+        {
+          apiKey: activeApiKey || undefined,
+          enableSearch,
+          enableThinking,
+          model: selectedModel,
+          onThought: (thoughtToken) => {
+            setMessages((prev) => {
+              const updated = [...prev];
+              const lastIdx = updated.length - 1;
+              if (lastIdx >= 0 && updated[lastIdx].role === "model") {
+                const prevThought = updated[lastIdx].thought || "";
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  thought: prevThought + thoughtToken
+                };
+              }
+              return updated;
+            });
+          },
+          onTelemetry: (telemetry) => {
+            setMessages((prev) => {
+              const updated = [...prev];
+              const lastIdx = updated.length - 1;
+              if (lastIdx >= 0 && updated[lastIdx].role === "model") {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  telemetry,
+                  web_sources: telemetry.web_sources || []
+                };
+              }
+              return updated;
+            });
+          }
+        }
       );
     } catch (err: any) {
       setMessages((prev) => [
@@ -770,7 +807,7 @@ export default function Home() {
 
             {/* 2. Center: Chat Window */}
             <div className="flex-1 bg-[#0d0d0d] border border-[#1f1f1f] rounded-lg flex flex-col overflow-hidden">
-              <div className="px-5 py-3 border-b border-[#1f1f1f] bg-[#121212] flex justify-between items-center text-xs">
+              <div className="px-5 py-2.5 border-b border-[#1f1f1f] bg-[#121212] flex flex-wrap justify-between items-center gap-2 text-xs">
                 <div className="flex items-center gap-3">
                   {!sidebarOpen && (
                     <button
@@ -781,20 +818,61 @@ export default function Home() {
                       <PanelLeft className="w-4 h-4 text-[#00ff66]" />
                     </button>
                   )}
-                  <span className="text-white font-bold flex items-center gap-2">
+                  <span className="text-white font-bold flex items-center gap-2 text-[11px] truncate max-w-xs">
                     <Zap className="w-3.5 h-3.5 text-[#00ff66]" />
                     {sessions.find((s) => s.id === activeSessionId)?.title || "CANAL CONVERSACIONAL DIRETO"}
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
+
+                {/* Tactical Controls: Grounding, Thinking, Model */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Web Search Grounding Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setEnableSearch(!enableSearch)}
+                    title="Ativa busca em tempo real no Google Search Grounding"
+                    className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition border ${
+                      enableSearch
+                        ? "bg-[#00e5ff]/15 border-[#00e5ff] text-[#00e5ff] shadow-sm shadow-[#00e5ff]/20"
+                        : "bg-[#181818] border-[#292929] text-[#777] hover:text-[#bbb]"
+                    }`}
+                  >
+                    <Globe className="w-3 h-3" />
+                    Busca Web {enableSearch ? "ON" : "OFF"}
+                  </button>
+
+                  {/* Deep Thinking Mode Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setEnableThinking(!enableThinking)}
+                    title="Ativa cadeia de pensamento e raciocínio profundo"
+                    className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition border ${
+                      enableThinking
+                        ? "bg-purple-950/40 border-purple-500 text-purple-400 shadow-sm shadow-purple-500/20"
+                        : "bg-[#181818] border-[#292929] text-[#777] hover:text-[#bbb]"
+                    }`}
+                  >
+                    <Cpu className="w-3 h-3" />
+                    Deep Think {enableThinking ? "ON" : "OFF"}
+                  </button>
+
+                  {/* Model Selector */}
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="bg-[#181818] border border-[#292929] text-[#aaa] text-[10px] font-mono rounded px-2 py-1 focus:outline-none focus:border-[#00ff66]"
+                  >
+                    <option value="gemini-2.5-flash">⚡ Flash 2.5</option>
+                    <option value="gemini-2.0-flash">🎯 Flash 2.0</option>
+                  </select>
+
                   <button
                     onClick={handleExportMarkdown}
                     title="Exportar Markdown"
-                    className="text-[#666] hover:text-[#00e5ff] text-[11px] flex items-center gap-1"
+                    className="text-[#666] hover:text-[#00e5ff] text-[10px] flex items-center gap-1 border-l border-[#222] pl-2"
                   >
-                    <Download className="w-3 h-3" /> Exportar .md
+                    <Download className="w-3 h-3" /> .md
                   </button>
-                  <span className="text-[#555] hidden sm:inline">MODELO: gemini-2.5-flash</span>
                 </div>
               </div>
 
@@ -809,28 +887,85 @@ export default function Home() {
                         msg.role === "user" ? "items-end" : "items-start"
                       }`}
                     >
-                      <span className="text-[10px] text-[#666] uppercase mb-1">
+                      <span className="text-[10px] text-[#666] uppercase mb-1 flex items-center gap-1.5">
                         {msg.role === "user" ? "OPERADOR" : "AGENTE MUTANTE (RAG STREAM)"}
+                        {msg.telemetry?.thoughts_tokens ? (
+                          <span className="text-purple-400 font-mono text-[9px] lowercase">
+                            • thinking ({msg.telemetry.thoughts_tokens} tkn)
+                          </span>
+                        ) : null}
                       </span>
                       <div
-                        className={`max-w-2xl rounded-lg px-4 py-3 text-xs leading-relaxed whitespace-pre-wrap ${
+                        className={`max-w-2xl rounded-lg px-4 py-3 text-xs leading-relaxed ${
                           msg.role === "user"
-                            ? "bg-[#1c1c1c] text-white border border-[#2a2a2a]"
+                            ? "bg-[#1c1c1c] text-white border border-[#2a2a2a] whitespace-pre-wrap"
                             : "bg-[#111] text-[#e0e0e0] border border-[#1f1f1f]"
                         }`}
                       >
+                        {/* Bloco de Raciocínio Expansível (Thinking / Chain-of-Thought) */}
+                        {msg.thought && (
+                          <details className="mb-2.5 bg-[#080808] border border-purple-500/30 rounded-md p-2 text-xs" open={isCurrentStreaming}>
+                            <summary className="cursor-pointer font-bold text-purple-400 flex items-center gap-1.5 hover:text-purple-300 select-none text-[10px] uppercase tracking-wider">
+                              <Cpu className="w-3.5 h-3.5 animate-pulse text-purple-400" />
+                              <span>Cadeia de Raciocínio Tático da IA</span>
+                              <span className="text-[9px] text-[#555] font-normal ml-auto">
+                                {msg.thought.length} chars
+                              </span>
+                            </summary>
+                            <div className="mt-2 text-[#aaa] font-mono text-[11px] whitespace-pre-wrap pl-2.5 border-l-2 border-purple-500/40 leading-relaxed bg-[#050505] p-2 rounded">
+                              {msg.thought}
+                            </div>
+                          </details>
+                        )}
+
+                        {/* Conteúdo Principal */}
                         {msg.content === "" && isCurrentStreaming ? (
                           <span className="text-[#00e5ff] animate-pulse flex items-center gap-2">
                             <span className="inline-block w-2 h-2 rounded-full bg-[#00e5ff] animate-ping" />
-                            Recuperando fragmentos RAG & sintetizando resposta...
+                            {enableSearch ? "Consultando Google Search Grounding & RAG..." : "Recuperando fragmentos RAG & sintetizando resposta..."}
                           </span>
                         ) : (
-                          <>
+                          <div className="whitespace-pre-wrap">
                             {msg.content}
                             {isCurrentStreaming && (
                               <span className="inline-block w-2 h-3.5 bg-[#00ff66] animate-pulse ml-1 align-middle" />
                             )}
-                          </>
+                          </div>
+                        )}
+
+                        {/* Fontes Web do Google Search Grounding */}
+                        {msg.web_sources && msg.web_sources.length > 0 && (
+                          <div className="mt-2.5 pt-2 border-t border-[#1a1a1a] space-y-1">
+                            <span className="text-[10px] text-[#00e5ff] font-bold uppercase flex items-center gap-1">
+                              <Globe className="w-3 h-3" /> Fontes Web Citadas (Google Search Grounding):
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {msg.web_sources.map((ws, wIdx) => (
+                                <a
+                                  key={wIdx}
+                                  href={ws.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#141414] hover:bg-[#1f1f1f] border border-[#2a2a2a] text-[10px] text-[#00e5ff] transition"
+                                >
+                                  <ExternalLink className="w-2.5 h-2.5" /> {ws.title}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Telemetria FinOps & Tokens */}
+                        {msg.telemetry && (
+                          <div className="mt-2.5 pt-1.5 flex flex-wrap items-center gap-3 text-[10px] text-[#666] font-mono border-t border-[#161616]">
+                            <span>⏱️ {msg.telemetry.latency_ms}ms</span>
+                            <span>📊 {msg.telemetry.total_tokens} tokens</span>
+                            {msg.telemetry.thoughts_tokens ? (
+                              <span className="text-purple-400">🧠 {msg.telemetry.thoughts_tokens} reflexão</span>
+                            ) : null}
+                            <span className="text-[#00ff66]">💵 ~${msg.telemetry.estimated_cost_usd}</span>
+                            <span className="text-[#555] ml-auto">{msg.telemetry.model_used}</span>
+                          </div>
                         )}
                       </div>
                     </div>
