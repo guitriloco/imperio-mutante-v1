@@ -106,9 +106,41 @@ export interface BillingOrder {
   tier: string;
   amount_paid?: number;
   payment_ref?: string;
-  api_key_issued: string;
+  api_key_issued?: string;
   timestamp: string;
   status: string;
+}
+
+export interface CreateCheckoutRequest {
+  customer_name: string;
+  customer_email: string;
+  tier: string;
+  payment_method: string;
+}
+
+export interface CheckoutSessionResponse {
+  order_id: string;
+  status: string;
+  tier: string;
+  amount: number;
+  payment_method: string;
+  pix_code?: string;
+  qr_code_svg?: string;
+  is_sandbox: boolean;
+  expires_at: string;
+  message: string;
+}
+
+export interface OrderStatusResponse {
+  order_id: string;
+  status: string;
+  tier: string;
+  amount_paid?: number;
+  customer_email: string;
+  customer_name: string;
+  api_key_issued?: string;
+  rate_limit_rpm?: number;
+  timestamp: string;
 }
 
 export interface ProvisionLicenseRequest {
@@ -347,6 +379,39 @@ export const api = {
   async getBillingOrders(): Promise<BillingOrder[]> {
     const res = await fetch(`${API_BASE_URL}/v1/billing/orders`);
     if (!res.ok) throw new Error("Falha ao carregar ordens financeiras");
+    return res.json();
+  },
+
+  async createCheckoutSession(req: CreateCheckoutRequest): Promise<CheckoutSessionResponse> {
+    const res = await fetch(`${API_BASE_URL}/v1/billing/create-checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Falha ao iniciar checkout");
+    }
+    return res.json();
+  },
+
+  async getOrderStatus(orderId: string): Promise<OrderStatusResponse> {
+    const res = await fetch(`${API_BASE_URL}/v1/billing/order-status/${encodeURIComponent(orderId)}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Falha ao verificar status da ordem");
+    }
+    return res.json();
+  },
+
+  async simulatePixPayment(orderId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/v1/billing/simulate-pix-payment/${encodeURIComponent(orderId)}`, {
+      method: "POST",
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "Falha ao simular liquidação PIX");
+    }
     return res.json();
   },
 

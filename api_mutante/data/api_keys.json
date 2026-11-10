@@ -33,5 +33,12 @@
     "created_at": "2026-11-09T17:28:48.551927",
     "total_requests": 1,
     "is_active": true
+  },
+  "05357fe752dc32a2ec7f36be6c2cfe6927d449a7c74da4a4d8a09117f90239b9": {
+    "owner": "Agente Operacional Bravo (bravo@mutante.local)",
+    "tier": "PRO",
+    "created_at": "2026-11-10T00:31:07.039209",
+    "total_requests": 1,
+    "is_active": true
   }
 }

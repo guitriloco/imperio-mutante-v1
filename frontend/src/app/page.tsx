@@ -14,6 +14,7 @@ import {
   AuditResponse,
   SelfHealingResponse,
   BillingOrder,
+  CheckoutSessionResponse,
 } from "@/lib/api";
 import {
   Terminal,
@@ -43,6 +44,7 @@ import {
   CreditCard,
   QrCode,
   ShoppingBag,
+  Copy,
   X,
 } from "lucide-react";
 
@@ -94,6 +96,9 @@ export default function Home() {
   const [paymentMethod, setPaymentMethod] = useState<"pix" | "card">("pix");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentCompletedKey, setPaymentCompletedKey] = useState<string | null>(null);
+  const [activeCheckoutSession, setActiveCheckoutSession] = useState<CheckoutSessionResponse | null>(null);
+  const [pixCopied, setPixCopied] = useState(false);
+  const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
 
   // Swarm State
   const [swarmStatus, setSwarmStatus] = useState<SwarmStatus | null>(null);
@@ -311,6 +316,8 @@ export default function Home() {
     setCheckoutTier(tier);
     setCheckoutAmount(amount);
     setPaymentCompletedKey(null);
+    setActiveCheckoutSession(null);
+    setPixCopied(false);
     setIsCheckoutOpen(true);
   }
 
@@ -322,22 +329,55 @@ export default function Home() {
     }
     setIsProcessingPayment(true);
     try {
-      const paymentRef = `pay_${paymentMethod}_${Date.now()}`;
-      const res = await api.provisionLicense({
-        customer_email: checkoutCustomerEmail.trim(),
+      const session = await api.createCheckoutSession({
         customer_name: checkoutCustomerName.trim() || checkoutCustomerEmail.split("@")[0],
+        customer_email: checkoutCustomerEmail.trim(),
         tier: checkoutTier,
-        payment_reference: paymentRef,
-        amount_paid: checkoutAmount,
+        payment_method: paymentMethod,
       });
 
-      setPaymentCompletedKey(res.api_key);
-      setActiveApiKey(res.api_key);
-      await loadBillingOrders();
+      setActiveCheckoutSession(session);
     } catch (err: any) {
       alert(`Falha no checkout: ${err.message}`);
     } finally {
       setIsProcessingPayment(false);
+    }
+  }
+
+  // Polling em tempo real para verificar se o PIX foi pago pelo cliente
+  useEffect(() => {
+    if (!activeCheckoutSession || paymentCompletedKey) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const st = await api.getOrderStatus(activeCheckoutSession.order_id);
+        if (st.status === "ACTIVE" && st.api_key_issued) {
+          setPaymentCompletedKey(st.api_key_issued);
+          setActiveApiKey(st.api_key_issued);
+          await loadBillingOrders();
+        }
+      } catch (err) {
+        console.error("Erro na verificação de status PIX:", err);
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [activeCheckoutSession, paymentCompletedKey]);
+
+  async function handleSimulatePix() {
+    if (!activeCheckoutSession) return;
+    setIsSimulatingPayment(true);
+    try {
+      const res = await api.simulatePixPayment(activeCheckoutSession.order_id);
+      if (res.api_key) {
+        setPaymentCompletedKey(res.api_key);
+        setActiveApiKey(res.api_key);
+        await loadBillingOrders();
+      }
+    } catch (err: any) {
+      alert(`Falha ao simular liquidação PIX: ${err.message}`);
+    } finally {
+      setIsSimulatingPayment(false);
     }
   }
 
@@ -1184,84 +1224,174 @@ export default function Home() {
                   </div>
 
                   {!paymentCompletedKey ? (
-                    <form onSubmit={handleConfirmPayment} className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-[11px] text-[#888] uppercase font-bold block">Seus Dados de Acesso:</label>
-                        <input
-                          type="text"
-                          placeholder="Seu Nome Completo"
-                          value={checkoutCustomerName}
-                          onChange={(e) => setCheckoutCustomerName(e.target.value)}
-                          className="w-full bg-[#141414] border border-[#222] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00e5ff]"
-                        />
-                        <input
-                          type="email"
-                          placeholder="seu.email@empresa.com"
-                          value={checkoutCustomerEmail}
-                          onChange={(e) => setCheckoutCustomerEmail(e.target.value)}
-                          required
-                          className="w-full bg-[#141414] border border-[#222] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00e5ff]"
-                        />
-                      </div>
-
-                      {/* Escolha de Método de Pagamento */}
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] text-[#888] uppercase font-bold block">Forma de Pagamento:</label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod("pix")}
-                            className={`p-2.5 rounded border text-xs font-bold flex items-center justify-center gap-2 transition ${
-                              paymentMethod === "pix"
-                                ? "bg-[#00ff66]/10 border-[#00ff66] text-[#00ff66]"
-                                : "bg-[#141414] border-[#222] text-[#777]"
-                            }`}
-                          >
-                            <QrCode className="w-4 h-4" /> PIX Instantâneo
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentMethod("card")}
-                            className={`p-2.5 rounded border text-xs font-bold flex items-center justify-center gap-2 transition ${
-                              paymentMethod === "card"
-                                ? "bg-[#00e5ff]/10 border-[#00e5ff] text-[#00e5ff]"
-                                : "bg-[#141414] border-[#222] text-[#777]"
-                            }`}
-                          >
-                            <CreditCard className="w-4 h-4" /> Cartão de Crédito
-                          </button>
+                    !activeCheckoutSession ? (
+                      <form onSubmit={handleConfirmPayment} className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-[11px] text-[#888] uppercase font-bold block">Seus Dados de Acesso:</label>
+                          <input
+                            type="text"
+                            placeholder="Seu Nome Completo"
+                            value={checkoutCustomerName}
+                            onChange={(e) => setCheckoutCustomerName(e.target.value)}
+                            className="w-full bg-[#141414] border border-[#222] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00e5ff]"
+                          />
+                          <input
+                            type="email"
+                            placeholder="seu.email@empresa.com"
+                            value={checkoutCustomerEmail}
+                            onChange={(e) => setCheckoutCustomerEmail(e.target.value)}
+                            required
+                            className="w-full bg-[#141414] border border-[#222] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00e5ff]"
+                          />
                         </div>
-                      </div>
 
-                      <div className="p-3 bg-[#121212] rounded border border-[#222] text-[11px] text-[#888] space-y-1">
-                        <div className="flex justify-between text-white">
-                          <span>Aprovisionamento:</span>
-                          <span className="text-[#00ff66] font-bold">Imediato (Zero Delay)</span>
+                        {/* Escolha de Método de Pagamento */}
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] text-[#888] uppercase font-bold block">Forma de Pagamento:</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod("pix")}
+                              className={`p-2.5 rounded border text-xs font-bold flex items-center justify-center gap-2 transition ${
+                                paymentMethod === "pix"
+                                  ? "bg-[#00ff66]/10 border-[#00ff66] text-[#00ff66]"
+                                  : "bg-[#141414] border-[#222] text-[#777]"
+                              }`}
+                            >
+                              <QrCode className="w-4 h-4" /> PIX Instantâneo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPaymentMethod("card")}
+                              className={`p-2.5 rounded border text-xs font-bold flex items-center justify-center gap-2 transition ${
+                                paymentMethod === "card"
+                                  ? "bg-[#00e5ff]/10 border-[#00e5ff] text-[#00e5ff]"
+                                  : "bg-[#141414] border-[#222] text-[#777]"
+                              }`}
+                            >
+                              <CreditCard className="w-4 h-4" /> Cartão de Crédito
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Gateway Webhook:</span>
-                          <span className="font-mono text-[10px]">Stripe / Mercado Pago</span>
-                        </div>
-                      </div>
 
-                      <button
-                        type="submit"
-                        disabled={isProcessingPayment}
-                        className="w-full bg-[#00ff66] hover:bg-[#00dd55] text-black font-bold py-3 rounded text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition disabled:opacity-50"
-                      >
-                        {isProcessingPayment ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                            Processando Transação...
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle className="w-4 h-4" />
-                            Confirmar Pagamento & Liberar Chave
-                          </>
+                        <div className="p-3 bg-[#121212] rounded border border-[#222] text-[11px] text-[#888] space-y-1">
+                          <div className="flex justify-between text-white">
+                            <span>Compensação Bancária:</span>
+                            <span className="text-[#00ff66] font-bold">Imediata via PIX / Webhook</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Gateway de Liquidação:</span>
+                            <span className="font-mono text-[10px] text-[#00e5ff]">Mercado Pago / Banco Central EMV</span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isProcessingPayment}
+                          className="w-full bg-[#00ff66] hover:bg-[#00dd55] text-black font-bold py-3 rounded text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition disabled:opacity-50 shadow-lg shadow-[#00ff66]/10"
+                        >
+                          {isProcessingPayment ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                              Gerando Cobrança PIX...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="w-4 h-4 fill-black" />
+                              Prosseguir para Pagamento (R$ {checkoutAmount},00)
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    ) : (
+                      /* Tela Interativa do PIX */
+                      <div className="space-y-4">
+                        <div className="text-center space-y-1">
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#00ff66]/10 border border-[#00ff66]/30 text-[#00ff66] text-[10px] font-bold uppercase tracking-wider animate-pulse">
+                            <RefreshCw className="w-3 h-3 animate-spin" /> Aguardando Pagamento Bancário...
+                          </div>
+                          <p className="text-xs text-[#888]">
+                            Escaneie o QR Code abaixo com o app de qualquer banco:
+                          </p>
+                        </div>
+
+                        {/* QR Code SVG */}
+                        {activeCheckoutSession.qr_code_svg && (
+                          <div
+                            className="bg-white p-3 rounded-lg w-48 h-48 mx-auto shadow-xl flex items-center justify-center border-2 border-[#00ff66]/40 [&>svg]:w-full [&>svg]:h-full"
+                            dangerouslySetInnerHTML={{ __html: activeCheckoutSession.qr_code_svg }}
+                          />
                         )}
-                      </button>
-                    </form>
+
+                        {/* Código PIX Copia e Cola */}
+                        {activeCheckoutSession.pix_code && (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] uppercase font-bold">
+                              <span className="text-[#777]">PIX Copia e Cola:</span>
+                              {pixCopied && <span className="text-[#00ff66]">Copiado com sucesso!</span>}
+                            </div>
+                            <div className="flex gap-2">
+                              <input
+                                readOnly
+                                value={activeCheckoutSession.pix_code}
+                                className="w-full bg-[#141414] border border-[#222] rounded px-2.5 py-1.5 text-[10px] font-mono text-[#aaa] select-all focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (activeCheckoutSession.pix_code) {
+                                    navigator.clipboard.writeText(activeCheckoutSession.pix_code);
+                                    setPixCopied(true);
+                                    setTimeout(() => setPixCopied(false), 2000);
+                                  }
+                                }}
+                                className="bg-[#1f1f1f] hover:bg-[#2a2a2a] border border-[#333] text-white px-3 py-1.5 rounded text-xs flex items-center gap-1 transition"
+                              >
+                                <Copy className="w-3.5 h-3.5" /> Copiar
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Painel de Homologação / Simulação */}
+                        {activeCheckoutSession.is_sandbox && (
+                          <div className="bg-[#121212] border border-amber-500/30 rounded p-3 text-center space-y-2">
+                            <div className="text-[10px] text-amber-400 font-bold uppercase flex items-center justify-center gap-1.5">
+                              <Zap className="w-3.5 h-3.5" /> Ambiente de Homologação / Teste Ativo
+                            </div>
+                            <p className="text-[11px] text-[#777]">
+                              Você pode testar com o PIX real ou aprovar a transação instantaneamente:
+                            </p>
+                            <button
+                              type="button"
+                              onClick={handleSimulatePix}
+                              disabled={isSimulatingPayment}
+                              className="w-full bg-[#00ff66]/10 hover:bg-[#00ff66]/20 border border-[#00ff66] text-[#00ff66] font-bold py-2 rounded text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition disabled:opacity-50"
+                            >
+                              {isSimulatingPayment ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  Confirmando com o Banco Central...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  Simular Confirmação PIX Agora
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setActiveCheckoutSession(null)}
+                          className="w-full text-center text-xs text-[#666] hover:text-[#999] py-1 transition"
+                        >
+                          ← Voltar e alterar dados
+                        </button>
+                      </div>
+                    )
                   ) : (
                     <div className="space-y-4 py-2">
                       <div className="bg-emerald-950/40 border border-emerald-600/40 rounded-lg p-4 text-center space-y-2">

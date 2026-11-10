@@ -41,5 +41,20 @@
     "api_key_issued": "mutante_enterprise_BvI9v3px5pQa4pBQvLWIkgyeDY-91biNOcRoRvLqaCA",
     "timestamp": "2026-11-09T17:28:48.553173",
     "status": "ACTIVE"
+  },
+  {
+    "order_id": "ord_pix_1794281466_82788b",
+    "customer_email": "bravo@mutante.local",
+    "customer_name": "Agente Operacional Bravo",
+    "tier": "PRO",
+    "amount_paid": 97.0,
+    "payment_method": "pix",
+    "pix_code": "00020126540014br.gov.bcb.pix0132pagamentos@imperiomutante.com.br520400005303986540597.005802BR5915IMPERIO MUTANTE6009SAO PAULO62170513MUT17942814666304E413",
+    "api_key_issued": "mutante_pro_LQV5ex2tCKzndf3ibzG3dv-iy72cvWZBySe01Ob4fdA",
+    "timestamp": "2026-11-10T00:31:07.004319",
+    "expires_at": "2026-11-10T01:01:06.908607",
+    "status": "ACTIVE",
+    "simulated": true,
+    "approved_at": "2026-11-10T00:31:07.040405"
   }
 ]
